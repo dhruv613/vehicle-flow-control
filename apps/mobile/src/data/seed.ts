@@ -39,5 +39,34 @@ export const seedGarage: GarageState = {
     { id: "e-5", date: "2026-07-24", time: "10:00", title: "Audi Q5 — diagnostics", customerId: "c-5", vehicleId: "v-5", technician: "Kabir Singh", duration: "2h", kind: "Service" },
     { id: "e-6", date: "2026-07-25", time: "09:30", title: "Volvo XC60 — inspection", customerId: "c-3", vehicleId: "v-6", technician: "Arjun Rao", duration: "1h", kind: "Inspection" },
   ],
+  invoices: [
+    {
+      id: "inv-1", number: "INV-2401", customerId: "c-4", vehicleId: "v-4", workOrderId: "wo-3", status: "paid",
+      lineItems: [
+        { description: "AC performance check", quantity: 1, unitPrice: 4200, total: 4200 },
+        { description: "Cabin filter — premium", quantity: 1, unitPrice: 1220, total: 1220 },
+      ],
+      subtotal: 5420, discount: 0, taxRate: 18, taxAmount: 975.6, total: 6395.6, amountPaid: 6395.6, balanceDue: 0,
+      issuedAt: "22 Jul 2026", payments: [{ id: "pay-1", amount: 6395.6, method: "upi", paidAt: "22 Jul 2026" }],
+    },
+    {
+      id: "inv-2", number: "INV-2402", customerId: "c-3", vehicleId: "v-3", workOrderId: "wo-2", status: "issued",
+      lineItems: [
+        { description: "Ceramic brake pad set", quantity: 1, unitPrice: 8450, total: 8450 },
+        { description: "Brake labour & road test", quantity: 2.5, unitPrice: 1200, total: 3000 },
+      ],
+      subtotal: 11450, discount: 450, taxRate: 18, taxAmount: 1980, total: 12980, amountPaid: 0, balanceDue: 12980,
+      issuedAt: "23 Jul 2026", payments: [],
+    },
+    {
+      id: "inv-3", number: "INV-2403", customerId: "c-1", vehicleId: "v-1", workOrderId: "wo-1", status: "partial",
+      lineItems: [
+        { description: "Annual service package", quantity: 1, unitPrice: 14200, total: 14200 },
+        { description: "5W-30 fully synthetic oil", quantity: 5, unitPrice: 980, total: 4900 },
+      ],
+      subtotal: 19100, discount: 700, taxRate: 18, taxAmount: 3312, total: 21712, amountPaid: 10000, balanceDue: 11712,
+      issuedAt: "23 Jul 2026", payments: [{ id: "pay-2", amount: 10000, method: "card", paidAt: "23 Jul 2026" }],
+    },
+  ],
   settings: { garageName: "Motorwise Garage", ownerName: "Alex Mercer", phone: "+91 22 4000 2020", address: "16 Khar West, Mumbai 400052", currency: "INR", serviceReminders: true, dailyDigest: true, compactNumbers: false },
 };

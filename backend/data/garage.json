@@ -59,11 +59,11 @@
       "fuel_type": "Petrol",
       "transmission": "CVT",
       "odometer": 28412,
-      "status": "in_service",
+      "status": "collected",
       "image_url": null,
       "notes": "Use 0W-20 fully synthetic oil.",
       "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "updated_at": "2026-07-23T15:46:04+00:00"
     },
     {
       "id": "veh_002",
@@ -77,11 +77,11 @@
       "fuel_type": "Diesel",
       "transmission": "Automatic",
       "odometer": 11250,
-      "status": "checked_in",
+      "status": "in_service",
       "image_url": null,
       "notes": null,
       "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "updated_at": "2026-07-23T15:41:45+00:00"
     },
     {
       "id": "veh_003",
@@ -110,7 +110,7 @@
       "customer_id": "cus_001",
       "service_type": "Periodic maintenance",
       "description": "30,000 km service, oil and cabin filter replacement.",
-      "status": "in_progress",
+      "status": "ready",
       "priority": "normal",
       "technician": "Rahul Verma",
       "scheduled_at": "2026-07-23T09:00:00+00:00",
@@ -121,7 +121,7 @@
       "parts_cost": 4250.0,
       "notes": "Customer approved estimate by phone.",
       "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "updated_at": "2026-07-23T15:41:35+00:00"
     },
     {
       "id": "job_002",
@@ -130,7 +130,7 @@
       "customer_id": "cus_002",
       "service_type": "Brake inspection",
       "description": "Inspect front brake noise and rotor wear.",
-      "status": "scheduled",
+      "status": "in_progress",
       "priority": "high",
       "technician": "Neha Singh",
       "scheduled_at": "2026-07-23T13:00:00+00:00",
@@ -141,7 +141,7 @@
       "parts_cost": 0.0,
       "notes": null,
       "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "updated_at": "2026-07-23T15:41:45+00:00"
     },
     {
       "id": "job_003",
@@ -248,15 +248,224 @@
       "sku": "BRAKE-PAD-HC-22",
       "name": "Front Brake Pad Set - Hyundai Creta",
       "category": "Brakes",
-      "quantity_on_hand": 2,
+      "quantity_on_hand": 3,
       "reorder_level": 2,
       "unit_price": 3950.0,
       "supplier": "Mobility Components Ltd.",
       "location": "Aisle C-01",
       "notes": null,
-      "stock_movements": [],
+      "stock_movements": [
+        {
+          "id": "mov_1",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:41:53+00:00"
+        }
+      ],
       "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "updated_at": "2026-07-23T15:41:53+00:00"
+    },
+    {
+      "id": "part_5dc81a1dd1",
+      "sku": "GJ02 EB 2908",
+      "name": "bumper",
+      "category": "drom",
+      "quantity_on_hand": 32,
+      "reorder_level": 33,
+      "unit_price": 399399.0,
+      "supplier": "suzuki",
+      "location": null,
+      "notes": null,
+      "stock_movements": [
+        {
+          "id": "mov_1",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:08+00:00"
+        },
+        {
+          "id": "mov_2",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:10+00:00"
+        },
+        {
+          "id": "mov_3",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:11+00:00"
+        },
+        {
+          "id": "mov_4",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:11+00:00"
+        },
+        {
+          "id": "mov_5",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:23+00:00"
+        },
+        {
+          "id": "mov_6",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:23+00:00"
+        },
+        {
+          "id": "mov_7",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:23+00:00"
+        },
+        {
+          "id": "mov_8",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:23+00:00"
+        },
+        {
+          "id": "mov_9",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:23+00:00"
+        },
+        {
+          "id": "mov_10",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:23+00:00"
+        },
+        {
+          "id": "mov_11",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:23+00:00"
+        },
+        {
+          "id": "mov_12",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:23+00:00"
+        },
+        {
+          "id": "mov_13",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:24+00:00"
+        },
+        {
+          "id": "mov_14",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:24+00:00"
+        },
+        {
+          "id": "mov_15",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:24+00:00"
+        },
+        {
+          "id": "mov_16",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:24+00:00"
+        },
+        {
+          "id": "mov_17",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:24+00:00"
+        },
+        {
+          "id": "mov_18",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:24+00:00"
+        },
+        {
+          "id": "mov_19",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:24+00:00"
+        },
+        {
+          "id": "mov_20",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:24+00:00"
+        },
+        {
+          "id": "mov_21",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:25+00:00"
+        },
+        {
+          "id": "mov_22",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:25+00:00"
+        },
+        {
+          "id": "mov_23",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:26+00:00"
+        },
+        {
+          "id": "mov_24",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:26+00:00"
+        },
+        {
+          "id": "mov_25",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:26+00:00"
+        },
+        {
+          "id": "mov_26",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:26+00:00"
+        },
+        {
+          "id": "mov_27",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:27+00:00"
+        },
+        {
+          "id": "mov_28",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:27+00:00"
+        },
+        {
+          "id": "mov_29",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:27+00:00"
+        },
+        {
+          "id": "mov_30",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:27+00:00"
+        },
+        {
+          "id": "mov_31",
+          "quantity_delta": 1,
+          "reason": "Stock received at front desk",
+          "at": "2026-07-23T15:43:28+00:00"
+        }
+      ],
+      "created_at": "2026-07-23T15:42:56+00:00",
+      "updated_at": "2026-07-23T15:43:28+00:00"
     }
   ],
   "invoices": [
@@ -327,6 +536,68 @@
       "payments": [],
       "created_at": "2026-07-23T13:52:01+00:00",
       "updated_at": "2026-07-23T13:52:01+00:00"
+    }
+  ],
+  "users": [
+    {
+      "id": "usr_001",
+      "username": "admin",
+      "name": "Alex Mercer",
+      "role": "Garage owner",
+      "password_hash": "pbkdf2_sha256$240000$41de1fd44d5a6d20f4b78ec71b6be00c$97c23a4ec7e05d7042789cfc6c3184708c6320b8ab2fa1e0fae4aca508f48743",
+      "created_at": "2026-07-23T15:39:10+00:00",
+      "updated_at": "2026-07-23T15:39:10+00:00"
+    },
+    {
+      "id": "usr_002",
+      "username": "mira",
+      "name": "Mira Patel",
+      "role": "Service advisor",
+      "password_hash": "pbkdf2_sha256$240000$b6d1d7303852aaa7d61265e775cbda5d$a32f80bbd1a725679fe481876cff448b26d0e7b6b8a384ba7cdfede36e32d62b",
+      "created_at": "2026-07-23T15:39:10+00:00",
+      "updated_at": "2026-07-23T15:39:10+00:00"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "ses_65c59ee261",
+      "token": "GKwtFV5IH5MwMm9QPp9nmvSQTd6Ibq3itAyqWNpXx2s",
+      "user_id": "usr_001",
+      "expires_at": "2026-07-30T15:39:28.029170+00:00",
+      "created_at": "2026-07-23T15:39:28+00:00",
+      "updated_at": "2026-07-23T15:39:28+00:00"
+    },
+    {
+      "id": "ses_2c14d9cee0",
+      "token": "e-DuyufA3PE7xK0RIFKQoKwNKmmrN-GvEY8qq2B4KWg",
+      "user_id": "usr_001",
+      "expires_at": "2026-07-30T15:39:37.807392+00:00",
+      "created_at": "2026-07-23T15:39:37+00:00",
+      "updated_at": "2026-07-23T15:39:37+00:00"
+    },
+    {
+      "id": "ses_a76f135257",
+      "token": "trJMfXRtMr4JD6soMDpL96-EFa21D9MZxqusyXGlRTQ",
+      "user_id": "usr_002",
+      "expires_at": "2026-07-30T15:40:28.415383+00:00",
+      "created_at": "2026-07-23T15:40:28+00:00",
+      "updated_at": "2026-07-23T15:40:28+00:00"
+    },
+    {
+      "id": "ses_c767e24f29",
+      "token": "D1nbbioi-CAzQ51jG7MyQ6DkD_6WWId12YONC3PsfmE",
+      "user_id": "usr_001",
+      "expires_at": "2026-07-30T15:45:54.866565+00:00",
+      "created_at": "2026-07-23T15:45:54+00:00",
+      "updated_at": "2026-07-23T15:45:54+00:00"
+    },
+    {
+      "id": "ses_2b40a32ec4",
+      "token": "8LNoBQ-iLD_26DHx-DKx9_TM51CB4NR5eYItaHqTiYI",
+      "user_id": "usr_001",
+      "expires_at": "2026-07-30T16:03:50.654868+00:00",
+      "created_at": "2026-07-23T16:03:50+00:00",
+      "updated_at": "2026-07-23T16:03:50+00:00"
     }
   ]
 }

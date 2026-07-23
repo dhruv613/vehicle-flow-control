@@ -16,10 +16,10 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from .seed import seed_data
+from .seed import seed_data, seed_users
 
 
-COLLECTIONS = ("settings", "customers", "vehicles", "jobs", "appointments", "inventory", "invoices")
+COLLECTIONS = ("settings", "customers", "vehicles", "jobs", "appointments", "inventory", "invoices", "users", "sessions")
 
 
 class LocalStore:
@@ -45,12 +45,21 @@ class LocalStore:
         else:
             data = seed_data()
 
+        changed = False
         for collection in COLLECTIONS:
+            if collection not in data:
+                changed = True
             value = data.setdefault(collection, [])
             if not isinstance(value, list):
                 raise RuntimeError(f"Collection '{collection}' in {self.data_file} must be a JSON array.")
 
-        if self.persist and not self.data_file.exists():
+        # Data files written before authentication existed have no accounts;
+        # give them the demo users so the login screen keeps working.
+        if not data["users"]:
+            data["users"] = seed_users()
+            changed = True
+
+        if self.persist and (changed or not self.data_file.exists()):
             self._write(data)
         return data
 
@@ -132,5 +141,8 @@ class LocalStore:
 
     def reset(self) -> None:
         with self._lock:
+            # Restoring demo data must not sign every tester out mid-demo.
+            sessions = self._data.get("sessions", [])
             self._data = seed_data()
+            self._data["sessions"] = sessions
             self._save()

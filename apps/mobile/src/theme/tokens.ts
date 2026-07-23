@@ -48,7 +48,14 @@ export const shadow = Platform.select({
   },
 });
 
+const systemSans = Platform.select({
+  ios: "System",
+  android: "sans-serif",
+  default: "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+});
+
+/** One normal sans-serif family everywhere — no decorative serif faces. */
 export const font = {
-  display: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia" }),
-  body: Platform.select({ ios: "System", android: "sans-serif", default: "Arial" }),
+  display: systemSans,
+  body: systemSans,
 };

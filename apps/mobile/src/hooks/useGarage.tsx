@@ -1,13 +1,51 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 
-import { checkApiConnection, loadRemoteWorkspace, type ConnectionState } from "../data/garageRepository";
+import {
+  checkApiConnection,
+  loadRemoteWorkspace,
+  pushAppointment,
+  pushCustomer,
+  pushDemoReset,
+  pushInventoryItem,
+  pushInvoice,
+  pushPayment,
+  pushSettings,
+  pushStockAdjustment,
+  pushVehicle,
+  pushVehicleStatus,
+  pushWorkOrder,
+  pushWorkOrderStatus,
+  type ConnectionState,
+} from "../data/garageRepository";
 import { seedGarage } from "../data/seed";
-import type { CalendarEvent, Customer, GarageSettings, GarageState, InventoryItem, Vehicle, VehicleStatus, WorkOrder } from "../data/types";
+import { readJson, STORAGE_KEYS, writeJson } from "../data/storage";
+import { useAuth } from "./useAuth";
+import type {
+  CalendarEvent,
+  Customer,
+  GarageSettings,
+  GarageState,
+  InventoryItem,
+  Invoice,
+  InvoiceLineItem,
+  Vehicle,
+  VehicleStatus,
+  WorkOrder,
+} from "../data/types";
 
 type NewVehicle = Omit<Vehicle, "id" | "lastService" | "nextService" | "imageTone"> & Partial<Pick<Vehicle, "lastService" | "nextService" | "imageTone">>;
 type NewCustomer = Omit<Customer, "id" | "initials" | "joinedAt" | "totalVisits" | "lifetimeValue"> & Partial<Pick<Customer, "initials" | "joinedAt" | "totalVisits" | "lifetimeValue">>;
 type NewWorkOrder = Omit<WorkOrder, "id" | "number" | "startedAt" | "checklist"> & Partial<Pick<WorkOrder, "startedAt" | "checklist">>;
 type NewEvent = Omit<CalendarEvent, "id">;
+export interface NewInvoice {
+  customerId: string;
+  vehicleId?: string | null;
+  workOrderId?: string | null;
+  status: "draft" | "issued";
+  discount: number;
+  taxRate: number;
+  lineItems: { description: string; quantity: number; unitPrice: number }[];
+}
 
 interface GarageContextValue extends GarageState {
   connection: ConnectionState;
@@ -22,6 +60,8 @@ interface GarageContextValue extends GarageState {
   adjustInventory: (inventoryId: string, amount: number) => void;
   addInventoryItem: (item: Omit<InventoryItem, "id">) => void;
   addEvent: (event: NewEvent) => void;
+  addInvoice: (invoice: NewInvoice) => string | null;
+  recordPayment: (invoiceId: string, amount: number, method: string) => void;
   updateSettings: (changes: Partial<GarageSettings>) => void;
   resetDemo: () => void;
 }
@@ -36,21 +76,100 @@ function statusAfter(status: VehicleStatus): VehicleStatus {
   return route[Math.min(route.indexOf(status) + 1, route.length - 1)];
 }
 
+/** Recompute invoice money fields the same way the FastAPI service does. */
+function settleInvoice(lineItems: InvoiceLineItem[], discount: number, taxRate: number, amountPaid: number) {
+  const subtotal = Math.round(lineItems.reduce((total, item) => total + item.total, 0) * 100) / 100;
+  const cappedDiscount = Math.min(discount, subtotal);
+  const taxAmount = Math.round((subtotal - cappedDiscount) * taxRate) / 100;
+  const total = Math.round((subtotal - cappedDiscount + taxAmount) * 100) / 100;
+  return { subtotal, discount: cappedDiscount, taxAmount, total, balanceDue: Math.max(Math.round((total - amountPaid) * 100) / 100, 0) };
+}
+
+/** Swap a locally minted id for the server's id everywhere it is referenced. */
+function adoptServerId(state: GarageState, kind: "customer" | "vehicle" | "workOrder" | "event" | "inventory" | "invoice", localId: string, serverId: string, serverNumber?: string): GarageState {
+  const swap = <T extends { id: string }>(rows: T[], extra?: (row: T) => T): T[] =>
+    rows.map((row) => {
+      let next = row.id === localId ? { ...row, id: serverId } : row;
+      return extra ? extra(next) : next;
+    });
+  switch (kind) {
+    case "customer":
+      return {
+        ...state,
+        customers: swap(state.customers),
+        vehicles: state.vehicles.map((row) => (row.customerId === localId ? { ...row, customerId: serverId } : row)),
+        workOrders: state.workOrders.map((row) => (row.customerId === localId ? { ...row, customerId: serverId } : row)),
+        events: state.events.map((row) => (row.customerId === localId ? { ...row, customerId: serverId } : row)),
+        invoices: state.invoices.map((row) => (row.customerId === localId ? { ...row, customerId: serverId } : row)),
+      };
+    case "vehicle":
+      return {
+        ...state,
+        vehicles: swap(state.vehicles),
+        workOrders: state.workOrders.map((row) => (row.vehicleId === localId ? { ...row, vehicleId: serverId } : row)),
+        events: state.events.map((row) => (row.vehicleId === localId ? { ...row, vehicleId: serverId } : row)),
+        invoices: state.invoices.map((row) => (row.vehicleId === localId ? { ...row, vehicleId: serverId } : row)),
+      };
+    case "workOrder":
+      return {
+        ...state,
+        workOrders: state.workOrders.map((row) => (row.id === localId ? { ...row, id: serverId, number: serverNumber ?? row.number } : row)),
+        invoices: state.invoices.map((row) => (row.workOrderId === localId ? { ...row, workOrderId: serverId } : row)),
+      };
+    case "event":
+      return { ...state, events: swap(state.events) };
+    case "inventory":
+      return { ...state, inventory: swap(state.inventory) };
+    case "invoice":
+      return { ...state, invoices: state.invoices.map((row) => (row.id === localId ? { ...row, id: serverId, number: serverNumber ?? row.number } : row)) };
+    default:
+      return state;
+  }
+}
+
 export function GarageProvider({ children }: PropsWithChildren) {
+  const { status: authStatus, mode: authMode } = useAuth();
   const [garage, setGarage] = useState<GarageState>(seedGarage);
   const [toast, setToast] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnectionState>("local");
+  const hydratedRef = useRef(false);
 
+  // Hydrate once signed in: prefer the live API, then the device's stored
+  // workspace, then the bundled seed.
   useEffect(() => {
+    if (authStatus !== "signedIn") {
+      hydratedRef.current = false;
+      return;
+    }
+    let cancelled = false;
     void (async () => {
-      const nextConnection = await checkApiConnection();
-      setConnection(nextConnection);
-      if (nextConnection === "connected") {
-        const remoteWorkspace = await loadRemoteWorkspace();
-        if (remoteWorkspace) setGarage(remoteWorkspace);
+      let next: GarageState | null = null;
+      let nextConnection: ConnectionState = "local";
+      if (authMode === "api") {
+        nextConnection = await checkApiConnection();
+        if (nextConnection === "connected") next = await loadRemoteWorkspace();
+        if (!next && nextConnection === "connected") nextConnection = "offline";
       }
+      if (!next) {
+        const stored = await readJson<GarageState>(STORAGE_KEYS.workspace);
+        if (stored?.customers && stored.settings) next = { ...stored, invoices: stored.invoices ?? [] };
+      }
+      if (cancelled) return;
+      if (next) setGarage(next);
+      setConnection(nextConnection);
+      hydratedRef.current = true;
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, authMode]);
+
+  // Persist the workspace locally (debounced) so refreshes keep tester data.
+  useEffect(() => {
+    if (!hydratedRef.current) return undefined;
+    const timer = setTimeout(() => void writeJson(STORAGE_KEYS.workspace, garage), 400);
+    return () => clearTimeout(timer);
+  }, [garage]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -59,6 +178,7 @@ export function GarageProvider({ children }: PropsWithChildren) {
   }, [toast]);
 
   const announce = useCallback((message: string) => setToast(message), []);
+  const isConnected = connection === "connected";
 
   const addCustomer = useCallback((input: NewCustomer) => {
     const id = makeId("c");
@@ -73,8 +193,13 @@ export function GarageProvider({ children }: PropsWithChildren) {
     };
     setGarage((current) => ({ ...current, customers: [customer, ...current.customers] }));
     announce(`${customer.name} added to customers`);
+    if (isConnected) {
+      void pushCustomer(customer).then((serverId) => {
+        if (serverId) setGarage((current) => adoptServerId(current, "customer", id, serverId));
+      });
+    }
     return id;
-  }, [announce]);
+  }, [announce, isConnected]);
 
   const addVehicle = useCallback((input: NewVehicle) => {
     const id = makeId("v");
@@ -87,8 +212,13 @@ export function GarageProvider({ children }: PropsWithChildren) {
     };
     setGarage((current) => ({ ...current, vehicles: [vehicle, ...current.vehicles] }));
     announce(`${vehicle.make} ${vehicle.model} added to the garage`);
+    if (isConnected) {
+      void pushVehicle(vehicle).then((serverId) => {
+        if (serverId) setGarage((current) => adoptServerId(current, "vehicle", id, serverId));
+      });
+    }
     return id;
-  }, [announce]);
+  }, [announce, isConnected]);
 
   const addWorkOrder = useCallback((input: NewWorkOrder) => {
     const id = makeId("wo");
@@ -102,22 +232,32 @@ export function GarageProvider({ children }: PropsWithChildren) {
         startedAt: input.startedAt ?? "—",
         checklist: input.checklist ?? [{ label: "Vehicle check-in", done: false }, { label: "Technician inspection", done: false }, { label: "Customer update", done: false }],
       };
+      if (isConnected) {
+        void pushWorkOrder(order).then((server) => {
+          if (server) setGarage((state) => adoptServerId(state, "workOrder", id, server.id, server.number));
+        });
+      }
       return { ...current, workOrders: [order, ...current.workOrders] };
     });
     announce(`${number} has been opened`);
     return id;
-  }, [announce]);
+  }, [announce, isConnected]);
 
   const updateVehicleStatus = useCallback((vehicleId: string, status: VehicleStatus) => {
     setGarage((current) => ({ ...current, vehicles: current.vehicles.map((vehicle) => vehicle.id === vehicleId ? { ...vehicle, status } : vehicle) }));
     announce(`Vehicle moved to ${status.toLowerCase()}`);
-  }, [announce]);
+    if (isConnected) void pushVehicleStatus(vehicleId, status);
+  }, [announce, isConnected]);
 
   const advanceWorkOrder = useCallback((workOrderId: string) => {
     setGarage((current) => {
       const active = current.workOrders.find((order) => order.id === workOrderId);
       if (!active || active.status === "Collected") return current;
       const status = statusAfter(active.status);
+      if (isConnected) {
+        void pushWorkOrderStatus(workOrderId, status);
+        void pushVehicleStatus(active.vehicleId, status);
+      }
       return {
         ...current,
         workOrders: current.workOrders.map((order) => order.id === workOrderId ? { ...order, status } : order),
@@ -125,7 +265,7 @@ export function GarageProvider({ children }: PropsWithChildren) {
       };
     });
     announce("Job moved to its next stage");
-  }, [announce]);
+  }, [announce, isConnected]);
 
   const toggleChecklistItem = useCallback((workOrderId: string, index: number) => {
     setGarage((current) => ({
@@ -143,27 +283,115 @@ export function GarageProvider({ children }: PropsWithChildren) {
       inventory: current.inventory.map((item) => item.id === inventoryId ? { ...item, quantity: Math.max(0, item.quantity + amount) } : item),
     }));
     announce(amount > 0 ? "Stock received" : "Stock adjusted");
-  }, [announce]);
+    if (isConnected) void pushStockAdjustment(inventoryId, amount);
+  }, [announce, isConnected]);
 
   const addInventoryItem = useCallback((input: Omit<InventoryItem, "id">) => {
-    setGarage((current) => ({ ...current, inventory: [{ ...input, id: makeId("i") }, ...current.inventory] }));
+    const id = makeId("i");
+    const item: InventoryItem = { ...input, id };
+    setGarage((current) => ({ ...current, inventory: [item, ...current.inventory] }));
     announce(`${input.name} added to inventory`);
-  }, [announce]);
+    if (isConnected) {
+      void pushInventoryItem(item).then((serverId) => {
+        if (serverId) setGarage((current) => adoptServerId(current, "inventory", id, serverId));
+      });
+    }
+  }, [announce, isConnected]);
 
   const addEvent = useCallback((input: NewEvent) => {
-    setGarage((current) => ({ ...current, events: [{ ...input, id: makeId("e") }, ...current.events] }));
+    const id = makeId("e");
+    const event: CalendarEvent = { ...input, id };
+    setGarage((current) => ({ ...current, events: [event, ...current.events] }));
     announce("Appointment scheduled");
-  }, [announce]);
+    if (isConnected) {
+      void pushAppointment(event).then((serverId) => {
+        if (serverId) setGarage((current) => adoptServerId(current, "event", id, serverId));
+      });
+    }
+  }, [announce, isConnected]);
+
+  const addInvoice = useCallback((input: NewInvoice) => {
+    if (!input.customerId || !input.lineItems.length) return null;
+    const id = makeId("inv");
+    const lineItems: InvoiceLineItem[] = input.lineItems.map((item) => ({
+      ...item,
+      total: Math.round(item.quantity * item.unitPrice * 100) / 100,
+    }));
+    const money = settleInvoice(lineItems, input.discount, input.taxRate, 0);
+    let number = "";
+    setGarage((current) => {
+      number = `INV-${2400 + current.invoices.length + 1}`;
+      const invoice: Invoice = {
+        id,
+        number,
+        customerId: input.customerId,
+        vehicleId: input.vehicleId ?? null,
+        workOrderId: input.workOrderId ?? null,
+        status: input.status,
+        lineItems,
+        subtotal: money.subtotal,
+        discount: money.discount,
+        taxRate: input.taxRate,
+        taxAmount: money.taxAmount,
+        total: money.total,
+        amountPaid: 0,
+        balanceDue: money.balanceDue,
+        issuedAt: dateLabel.format(new Date()),
+        payments: [],
+      };
+      if (isConnected) {
+        void pushInvoice(invoice).then((server) => {
+          if (server) setGarage((state) => adoptServerId(state, "invoice", id, server.id, server.number));
+        });
+      }
+      return { ...current, invoices: [invoice, ...current.invoices] };
+    });
+    announce(`${number} created`);
+    return id;
+  }, [announce, isConnected]);
+
+  const recordPayment = useCallback((invoiceId: string, amount: number, method: string) => {
+    setGarage((current) => ({
+      ...current,
+      invoices: current.invoices.map((invoice) => {
+        if (invoice.id !== invoiceId) return invoice;
+        const applied = Math.min(amount, invoice.balanceDue);
+        if (applied <= 0) return invoice;
+        const amountPaid = Math.round((invoice.amountPaid + applied) * 100) / 100;
+        const balanceDue = Math.max(Math.round((invoice.total - amountPaid) * 100) / 100, 0);
+        return {
+          ...invoice,
+          amountPaid,
+          balanceDue,
+          status: balanceDue === 0 ? "paid" : "partial",
+          payments: [...invoice.payments, { id: makeId("pay"), amount: applied, method, paidAt: dateLabel.format(new Date()) }],
+        };
+      }),
+    }));
+    announce("Payment recorded");
+    if (isConnected) void pushPayment(invoiceId, amount, method);
+  }, [announce, isConnected]);
 
   const updateSettings = useCallback((changes: Partial<GarageSettings>) => {
-    setGarage((current) => ({ ...current, settings: { ...current.settings, ...changes } }));
-    announce("Settings saved locally");
-  }, [announce]);
+    setGarage((current) => {
+      const settings = { ...current.settings, ...changes };
+      if (isConnected) void pushSettings(settings);
+      return { ...current, settings };
+    });
+    announce("Settings saved");
+  }, [announce, isConnected]);
 
   const resetDemo = useCallback(() => {
+    if (isConnected) {
+      void pushDemoReset().then((workspace) => {
+        setGarage(workspace ?? seedGarage);
+        announce("Demo workspace restored");
+      });
+      return;
+    }
     setGarage(seedGarage);
     announce("Demo workspace restored");
-  }, [announce]);
+  }, [announce, isConnected]);
 
   const value = useMemo<GarageContextValue>(() => ({
     ...garage,
@@ -179,9 +407,11 @@ export function GarageProvider({ children }: PropsWithChildren) {
     adjustInventory,
     addInventoryItem,
     addEvent,
+    addInvoice,
+    recordPayment,
     updateSettings,
     resetDemo,
-  }), [garage, connection, toast, addVehicle, addCustomer, addWorkOrder, updateVehicleStatus, advanceWorkOrder, toggleChecklistItem, adjustInventory, addInventoryItem, addEvent, updateSettings, resetDemo]);
+  }), [garage, connection, toast, addVehicle, addCustomer, addWorkOrder, updateVehicleStatus, advanceWorkOrder, toggleChecklistItem, adjustInventory, addInventoryItem, addEvent, addInvoice, recordPayment, updateSettings, resetDemo]);
 
   return <GarageContext.Provider value={value}>{children}</GarageContext.Provider>;
 }

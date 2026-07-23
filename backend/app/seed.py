@@ -5,6 +5,30 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+from .auth import hash_password
+
+# Demo sign-in shown on the app's login screen. Replace before any real rollout.
+DEMO_ACCOUNTS = (
+    {"id": "usr_001", "username": "admin", "name": "Alex Mercer", "role": "Garage owner", "password": "garage123"},
+    {"id": "usr_002", "username": "mira", "name": "Mira Patel", "role": "Service advisor", "password": "garage123"},
+)
+
+
+def seed_users() -> list[dict[str, Any]]:
+    now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return [
+        {
+            "id": account["id"],
+            "username": account["username"],
+            "name": account["name"],
+            "role": account["role"],
+            "password_hash": hash_password(account["password"]),
+            "created_at": now,
+            "updated_at": now,
+        }
+        for account in DEMO_ACCOUNTS
+    ]
+
 
 def seed_data() -> dict[str, list[dict[str, Any]]]:
     today = date.today()
@@ -358,4 +382,6 @@ def seed_data() -> dict[str, list[dict[str, Any]]]:
         "appointments": appointments,
         "inventory": inventory,
         "invoices": invoices,
+        "users": seed_users(),
+        "sessions": [],
     }

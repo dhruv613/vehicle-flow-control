@@ -23,6 +23,11 @@ class APIModel(BaseModel):
     )
 
 
+class LoginRequest(APIModel):
+    username: str = Field(min_length=2, max_length=60)
+    password: str = Field(min_length=4, max_length=128)
+
+
 class CustomerCreate(APIModel):
     name: str = Field(min_length=2, max_length=120)
     phone: str = Field(min_length=5, max_length=32)

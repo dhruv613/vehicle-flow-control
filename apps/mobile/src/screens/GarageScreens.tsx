@@ -29,6 +29,7 @@ import {
   ToggleRow,
   VehicleArt,
 } from "../components/garageUi";
+import { useAuth } from "../hooks/useAuth";
 import { formatMoney, useGarage } from "../hooks/useGarage";
 import type { CalendarEvent, Customer, InventoryItem, ScreenName, Vehicle, VehicleStatus, WorkOrder } from "../data/types";
 import { colors, font, radius, spacing } from "../theme/tokens";
@@ -67,20 +68,19 @@ function stageIcon(status: VehicleStatus) {
   }[status] as "time-outline";
 }
 
-function PageIntro({ eyebrow, title, detail, action }: { eyebrow: string; title: string; detail: string; action?: ReactNode }) {
+export function PageIntro({ title, detail, action }: { title: string; detail?: string; action?: ReactNode }) {
   return (
     <View style={styles.pageIntro}>
       <View style={styles.pageIntroCopy}>
-        <Label>{eyebrow}</Label>
         <Text style={styles.pageTitle}>{title}</Text>
-        <Text style={styles.pageDetail}>{detail}</Text>
+        {detail ? <Text style={styles.pageDetail}>{detail}</Text> : null}
       </View>
       {action ? <View style={styles.pageAction}>{action}</View> : null}
     </View>
   );
 }
 
-function PageScroll({ children }: { children: ReactNode }) {
+export function PageScroll({ children }: { children: ReactNode }) {
   return <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.pageScroll}>{children}</ScrollView>;
 }
 
@@ -97,7 +97,7 @@ function ConnectionHint() {
 }
 
 export function DashboardScreen({ navigate, isWide }: ScreenProps) {
-  const { settings, workOrders, vehicles, inventory, events, customers, advanceWorkOrder } = useGarage();
+  const { settings, workOrders, vehicles, inventory, events, customers } = useGarage();
   const activeOrders = workOrders.filter((order) => order.status !== "Collected");
   const waiting = workOrders.filter((order) => order.status === "Waiting").length;
   const lowStock = inventory.filter((item) => item.quantity <= item.reorderAt);
@@ -111,49 +111,22 @@ export function DashboardScreen({ navigate, isWide }: ScreenProps) {
     <PageScroll>
       <View style={styles.dashboardWelcome}>
         <View>
-          <Label>Operations desk</Label>
-          <Text style={styles.dashboardGreeting}>Good morning, {greetingName}.</Text>
-          <Text style={styles.dashboardDate}>{humanDate.format(new Date())} · A clear view of every bay.</Text>
+          <Text style={styles.dashboardGreeting}>Hello, {greetingName}</Text>
+          <Text style={styles.dashboardDate}>{humanDate.format(new Date())}</Text>
         </View>
         <ConnectionHint />
       </View>
 
       <View style={[styles.metricGrid, isWide && styles.metricGridWide]}>
-        <MetricCard label="Active jobs" value={String(activeOrders.length)} detail={`${waiting} awaiting intake`} icon="construct-outline" onPress={() => navigate("workorders")} />
-        <MetricCard label="Today's schedule" value={String(todayEvents.length || displayEvents.length)} detail="Bookings and handovers" icon="calendar-outline" onPress={() => navigate("calendar")} />
-        <MetricCard label="Open estimate value" value={formatMoney(grossValue, settings.currency)} detail="Across active work" icon="wallet-outline" inverse onPress={() => navigate("workorders")} />
-        <MetricCard label="Parts to reorder" value={String(lowStock.length)} detail={lowStock.length ? `${lowStock[0].name} needs attention` : "Stock levels are healthy"} icon="cube-outline" onPress={() => navigate("inventory")} />
+        <MetricCard label="Active jobs" value={String(activeOrders.length)} detail={`${waiting} waiting`} icon="construct-outline" onPress={() => navigate("workorders")} />
+        <MetricCard label="Today" value={String(todayEvents.length || displayEvents.length)} detail="Appointments" icon="calendar-outline" onPress={() => navigate("calendar")} />
+        <MetricCard label="Open value" value={formatMoney(grossValue, settings.currency)} detail="Active work" icon="wallet-outline" inverse onPress={() => navigate("billing")} />
+        <MetricCard label="Low stock" value={String(lowStock.length)} detail={lowStock.length ? "Needs reordering" : "All healthy"} icon="cube-outline" onPress={() => navigate("inventory")} />
       </View>
 
       <View style={[styles.dashboardTwoColumn, isWide && styles.dashboardTwoColumnWide]}>
         <Card style={styles.flexCard}>
-          <SectionHeader title="Workshop pulse" action="Open work orders" onAction={() => navigate("workorders")} />
-          <Text style={styles.cardIntro}>Move each job deliberately through the workshop. Every change updates the vehicle board too.</Text>
-          <View style={styles.stageGrid}>
-            {vehicleStatuses.slice(0, 4).map((status) => {
-              const count = workOrders.filter((order) => order.status === status).length;
-              return (
-                <Pressable key={status} onPress={() => navigate("workorders")} style={({ pressed }) => [styles.stageTile, pressed && styles.pressed]}>
-                  <View style={styles.stageIcon}><Icon name={stageIcon(status)} size={18} color={colors.ink} /></View>
-                  <Text style={styles.stageCount}>{count}</Text>
-                  <Text style={styles.stageLabel}>{status}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Divider />
-          <View style={styles.urgentCallout}>
-            <View style={styles.urgentIcon}><Icon name="alert-circle-outline" size={18} color={colors.error} /></View>
-            <View style={styles.flexCopy}>
-              <Text style={styles.urgentTitle}>{lowStock.length ? `${lowStock.length} inventory item${lowStock.length > 1 ? "s" : ""} need a reorder` : "No inventory issues"}</Text>
-              <Text style={styles.urgentDetail}>{lowStock.length ? "Open stock control before your next supplier run." : "All parts are above their reorder level."}</Text>
-            </View>
-            <IconButton icon="arrow-forward" label="Open inventory" onPress={() => navigate("inventory")} />
-          </View>
-        </Card>
-
-        <Card style={styles.flexCard}>
-          <SectionHeader title="Next on the floor" action="View calendar" onAction={() => navigate("calendar")} />
+          <SectionHeader title="Today's schedule" action="Calendar" onAction={() => navigate("calendar")} />
           {displayEvents.length ? displayEvents.map((event, index) => {
             const vehicle = vehicleFor(vehicles, event.vehicleId);
             const customer = customerFor(customers, event.customerId);
@@ -170,20 +143,18 @@ export function DashboardScreen({ navigate, isWide }: ScreenProps) {
                 </Pressable>
               </View>
             );
-          }) : <EmptyState icon="calendar-outline" title="Nothing booked yet" detail="Your next appointment will appear here." action="Schedule visit" onAction={() => navigate("calendar")} />}
+          }) : <EmptyState icon="calendar-outline" title="Nothing booked" detail="Your next appointment will appear here." action="Schedule" onAction={() => navigate("calendar")} />}
         </Card>
-      </View>
 
-      <View style={[styles.dashboardTwoColumn, isWide && styles.dashboardTwoColumnWide]}>
         <Card style={styles.flexCard}>
-          <SectionHeader title="Live work orders" action="Manage board" onAction={() => navigate("workorders")} />
+          <SectionHeader title="Work orders" action="See all" onAction={() => navigate("workorders")} />
           {activeOrders.slice(0, 4).map((order, index) => {
             const vehicle = vehicleFor(vehicles, order.vehicleId);
             const customer = customerFor(customers, order.customerId);
             return (
               <View key={order.id}>
                 {index ? <Divider /> : null}
-                <Pressable onPress={() => advanceWorkOrder(order.id)} style={({ pressed }) => [styles.orderMiniRow, pressed && styles.pressed]}>
+                <Pressable onPress={() => navigate("workorders")} style={({ pressed }) => [styles.orderMiniRow, pressed && styles.pressed]}>
                   <VehicleArt tone={vehicle?.imageTone} size="small" />
                   <View style={styles.orderMiniCopy}>
                     <Text style={styles.orderMiniTitle}>{order.title}</Text>
@@ -196,20 +167,36 @@ export function DashboardScreen({ navigate, isWide }: ScreenProps) {
             );
           })}
         </Card>
-
-        <View style={styles.quickColumn}>
-          <View style={styles.quickBrief}>
-            <Label style={styles.quickBriefLabel}>A smarter handover</Label>
-            <Text style={styles.quickBriefTitle}>Keep the customer in the loop.</Text>
-            <Text style={styles.quickBriefDetail}>Every vehicle has a service status, an owner, and a simple next action—so the front desk never has to guess.</Text>
-            <PrimaryButton label="Add a customer" icon="person-add-outline" onPress={() => navigate("customers")} variant="light" compact style={styles.quickBriefButton} />
-          </View>
-          <Pressable onPress={() => navigate("vehicles")} style={({ pressed }) => [styles.fleetCta, pressed && styles.pressed]}>
-            <View><Text style={styles.fleetCtaEyebrow}>Fleet register</Text><Text style={styles.fleetCtaTitle}>{vehicles.length} vehicles are on record</Text></View>
-            <View style={styles.fleetCtaArrow}><Icon name="arrow-forward" size={19} color={colors.surface} /></View>
-          </Pressable>
-        </View>
       </View>
+
+      <Card>
+        <SectionHeader title="Workshop stages" action="Open board" onAction={() => navigate("workorders")} />
+        <View style={styles.stageGrid}>
+          {vehicleStatuses.slice(0, 4).map((status) => {
+            const count = workOrders.filter((order) => order.status === status).length;
+            return (
+              <Pressable key={status} onPress={() => navigate("workorders")} style={({ pressed }) => [styles.stageTile, pressed && styles.pressed]}>
+                <View style={styles.stageIcon}><Icon name={stageIcon(status)} size={18} color={colors.ink} /></View>
+                <Text style={styles.stageCount}>{count}</Text>
+                <Text style={styles.stageLabel}>{status}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {lowStock.length ? (
+          <>
+            <Divider />
+            <View style={styles.urgentCallout}>
+              <View style={styles.urgentIcon}><Icon name="alert-circle-outline" size={18} color={colors.error} /></View>
+              <View style={styles.flexCopy}>
+                <Text style={styles.urgentTitle}>{lowStock.length} part{lowStock.length > 1 ? "s" : ""} to reorder</Text>
+                <Text style={styles.urgentDetail}>{lowStock[0].name}{lowStock.length > 1 ? ` and ${lowStock.length - 1} more` : ""}</Text>
+              </View>
+              <IconButton icon="arrow-forward" label="Open inventory" onPress={() => navigate("inventory")} />
+            </View>
+          </>
+        ) : null}
+      </Card>
     </PageScroll>
   );
 }
@@ -218,10 +205,12 @@ export function VehiclesScreen({ navigate }: ScreenProps) {
   const { vehicles, customers, workOrders, updateVehicleStatus, addVehicle } = useGarage();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | VehicleStatus>("All");
-  const [selected, setSelected] = useState<Vehicle | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [formError, setFormError] = useState("");
   const [draft, setDraft] = useState(() => makeVehicleDraft(customers[0]?.id ?? ""));
+  // Derive from live state so status taps inside the sheet update instantly.
+  const selected = vehicles.find((vehicle) => vehicle.id === selectedId) ?? null;
 
   const visibleVehicles = useMemo(() => vehicles.filter((vehicle) => {
     const matchesFilter = filter === "All" || vehicle.status === filter;
@@ -255,7 +244,7 @@ export function VehiclesScreen({ navigate }: ScreenProps) {
 
   return (
     <PageScroll>
-      <PageIntro eyebrow="Fleet register" title="Vehicles" detail="A single source of truth for every car in the workshop." action={<PrimaryButton label="Add vehicle" icon="add" onPress={openAdd} compact />} />
+      <PageIntro title="Vehicles" detail="Every car in the workshop." action={<PrimaryButton label="Add vehicle" icon="add" onPress={openAdd} compact />} />
       <SearchInput value={search} onChangeText={setSearch} placeholder="Search registration, model or colour" />
       <View style={styles.filterSpacer}><FilterChips options={["All", ...vehicleStatuses] as const} selected={filter} onChange={setFilter} /></View>
       <View style={styles.listCaption}><Text style={styles.listCaptionText}>{visibleVehicles.length} vehicle{visibleVehicles.length === 1 ? "" : "s"} shown</Text><Text style={styles.listCaptionHint}>Tap a card to update status</Text></View>
@@ -264,7 +253,7 @@ export function VehiclesScreen({ navigate }: ScreenProps) {
           const owner = customerFor(customers, vehicle.customerId);
           const openOrders = workOrders.filter((order) => order.vehicleId === vehicle.id && order.status !== "Collected");
           return (
-            <Pressable key={vehicle.id} onPress={() => setSelected(vehicle)} style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}>
+            <Pressable key={vehicle.id} onPress={() => setSelectedId(vehicle.id)} style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}>
               <VehicleArt tone={vehicle.imageTone} />
               <View style={styles.vehicleCardCopy}>
                 <View style={styles.rowBetween}><Text style={styles.vehicleCardTitle}>{vehicle.make} {vehicle.model}</Text><StatusBadge status={vehicle.status} small /></View>
@@ -279,7 +268,7 @@ export function VehiclesScreen({ navigate }: ScreenProps) {
       </View>
       {!visibleVehicles.length ? <EmptyState icon="car-outline" title="No vehicles found" detail="Try a different filter or add a vehicle to the register." action="Add vehicle" onAction={openAdd} /> : null}
 
-      <Sheet visible={Boolean(selected)} onClose={() => setSelected(null)} title={selected ? `${selected.make} ${selected.model}` : "Vehicle"} subtitle={selected ? `${selected.plate} · ${selected.year} · ${selected.colour}` : undefined} footer={selected ? <PrimaryButton label="Open work orders" icon="construct-outline" onPress={() => { setSelected(null); navigate("workorders"); }} /> : undefined}>
+      <Sheet visible={Boolean(selected)} onClose={() => setSelectedId(null)} title={selected ? `${selected.make} ${selected.model}` : "Vehicle"} subtitle={selected ? `${selected.plate} · ${selected.year} · ${selected.colour}` : undefined} footer={selected ? <PrimaryButton label="Open work orders" icon="construct-outline" onPress={() => { setSelectedId(null); navigate("workorders"); }} /> : undefined}>
         {selected ? <VehicleDetail vehicle={selected} customers={customers} workOrders={workOrders} onStatus={(status) => updateVehicleStatus(selected.id, status)} /> : null}
       </Sheet>
       <Sheet visible={adding} onClose={() => setAdding(false)} title="Add vehicle" subtitle="Create a clean record before the car reaches a bay." footer={<PrimaryButton label="Save vehicle" icon="checkmark" onPress={saveVehicle} />}>
@@ -309,7 +298,8 @@ export function CustomersScreen({ navigate }: ScreenProps) {
   const { customers, vehicles, workOrders, addCustomer } = useGarage();
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
-  const [selected, setSelected] = useState<Customer | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = customers.find((customer) => customer.id === selectedId) ?? null;
   const [error, setError] = useState("");
   const [draft, setDraft] = useState({ name: "", phone: "", email: "", note: "" });
   const visible = customers.filter((customer) => !search.trim() || `${customer.name} ${customer.phone} ${customer.email}`.toLowerCase().includes(search.trim().toLowerCase()));
@@ -321,13 +311,13 @@ export function CustomersScreen({ navigate }: ScreenProps) {
   };
 
   return <PageScroll>
-    <PageIntro eyebrow="Customer book" title="Customers" detail="Keep every relationship, service history and contact detail in one place." action={<PrimaryButton label="Add customer" icon="person-add-outline" onPress={openAdd} compact />} />
+    <PageIntro title="Customers" detail="Contacts, vehicles and history." action={<PrimaryButton label="Add customer" icon="person-add-outline" onPress={openAdd} compact />} />
     <SearchInput value={search} onChangeText={setSearch} placeholder="Search customers or phone numbers" />
     <View style={styles.customerSummary}><Text style={styles.customerSummaryStrong}>{customers.length} customer{customers.length === 1 ? "" : "s"}</Text><Text style={styles.customerSummaryText}>· {customers.reduce((total, customer) => total + customer.totalVisits, 0)} recorded visits</Text></View>
     <View style={styles.cardList}>{visible.map((customer) => {
       const ownedVehicles = vehicles.filter((vehicle) => vehicle.customerId === customer.id);
       const activeJobs = workOrders.filter((order) => order.customerId === customer.id && order.status !== "Collected");
-      return <Pressable key={customer.id} onPress={() => setSelected(customer)} style={({ pressed }) => [styles.customerCard, pressed && styles.pressed]}>
+      return <Pressable key={customer.id} onPress={() => setSelectedId(customer.id)} style={({ pressed }) => [styles.customerCard, pressed && styles.pressed]}>
         <Avatar initials={customer.initials} size={52} />
         <View style={styles.customerCardCopy}><View style={styles.rowBetween}><Text style={styles.customerName}>{customer.name}</Text>{activeJobs.length ? <StatusBadge status="In service" small /> : null}</View><Text style={styles.customerContact}>{customer.phone} · {customer.email || "No email"}</Text><Text style={styles.customerMeta}>{ownedVehicles.length} vehicle{ownedVehicles.length === 1 ? "" : "s"} · {customer.totalVisits} visit{customer.totalVisits === 1 ? "" : "s"} · {formatMoney(customer.lifetimeValue)}</Text></View><Icon name="chevron-forward" size={20} color={colors.inkFaint} />
       </Pressable>;
@@ -336,7 +326,7 @@ export function CustomersScreen({ navigate }: ScreenProps) {
     <Sheet visible={adding} onClose={() => setAdding(false)} title="Add customer" subtitle="Start a relationship with a useful, clean profile." footer={<PrimaryButton label="Save customer" icon="checkmark" onPress={save} />}>
       {error ? <FormError text={error} /> : null}<FormField label="Full name" value={draft.name} onChangeText={(name) => setDraft((current) => ({ ...current, name }))} placeholder="Customer name" /><FormField label="Phone" value={draft.phone} onChangeText={(phone) => setDraft((current) => ({ ...current, phone }))} keyboardType="phone-pad" placeholder="+91 ..." /><FormField label="Email" value={draft.email} onChangeText={(email) => setDraft((current) => ({ ...current, email }))} keyboardType="email-address" autoCapitalize="none" placeholder="customer@example.com" /><FormField label="Notes" value={draft.note} onChangeText={(note) => setDraft((current) => ({ ...current, note }))} placeholder="Preferences, fleet notes, collection instructions" multiline />
     </Sheet>
-    <Sheet visible={Boolean(selected)} onClose={() => setSelected(null)} title={selected?.name ?? "Customer"} subtitle={selected ? `${selected.totalVisits} visits · member since ${selected.joinedAt}` : undefined} footer={<PrimaryButton label="View vehicles" icon="car-outline" onPress={() => { setSelected(null); navigate("vehicles"); }} />}>
+    <Sheet visible={Boolean(selected)} onClose={() => setSelectedId(null)} title={selected?.name ?? "Customer"} subtitle={selected ? `${selected.totalVisits} visits · member since ${selected.joinedAt}` : undefined} footer={<PrimaryButton label="View vehicles" icon="car-outline" onPress={() => { setSelectedId(null); navigate("vehicles"); }} />}>
       {selected ? <CustomerDetail customer={selected} vehicles={vehicles.filter((vehicle) => vehicle.customerId === selected.id)} orders={workOrders.filter((order) => order.customerId === selected.id)} /> : null}
     </Sheet>
   </PageScroll>;
@@ -355,7 +345,8 @@ export function WorkOrdersScreen({ isWide }: ScreenProps) {
   const { workOrders, vehicles, customers, addWorkOrder, advanceWorkOrder, toggleChecklistItem, settings } = useGarage();
   const [filter, setFilter] = useState<"All" | VehicleStatus>("All");
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<WorkOrder | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = workOrders.find((order) => order.id === selectedId) ?? null;
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState(() => makeOrderDraft(customers[0]?.id ?? "", vehicles[0]?.id ?? ""));
@@ -368,21 +359,21 @@ export function WorkOrdersScreen({ isWide }: ScreenProps) {
   };
 
   return <PageScroll>
-    <PageIntro eyebrow="Workshop board" title="Work orders" detail="Plan, progress and hand over service work without losing the next action." action={<PrimaryButton label="New work order" icon="add" onPress={openAdd} compact />} />
+    <PageIntro title="Work orders" detail="Plan and progress service work." action={<PrimaryButton label="New work order" icon="add" onPress={openAdd} compact />} />
     <View style={[styles.workOrderControls, isWide && styles.workOrderControlsWide]}><View style={styles.workSearch}><SearchInput value={search} onChangeText={setSearch} placeholder="Search number, task or technician" /></View><View style={styles.workFilter}><FilterChips options={["All", ...vehicleStatuses] as const} selected={filter} onChange={setFilter} /></View></View>
     <View style={styles.workBoardHeader}><Text style={styles.listCaptionText}>{displayed.length} active and completed jobs</Text><Text style={styles.workBoardHint}>Tap a job to open its checklist</Text></View>
     <View style={styles.cardList}>{displayed.map((order) => {
       const vehicle = vehicleFor(vehicles, order.vehicleId);
       const customer = customerFor(customers, order.customerId);
       const completed = order.checklist.filter((item) => item.done).length;
-      return <Pressable key={order.id} onPress={() => setSelected(order)} style={({ pressed }) => [styles.workCard, pressed && styles.pressed]}>
+      return <Pressable key={order.id} onPress={() => setSelectedId(order.id)} style={({ pressed }) => [styles.workCard, pressed && styles.pressed]}>
         <View style={styles.workCardHead}><View style={styles.workNumber}><Text style={styles.workNumberText}>{order.number}</Text></View><StatusBadge status={order.status} /><StatusBadge status={order.priority} small /></View>
         <View style={styles.workCardMain}><VehicleArt tone={vehicle?.imageTone} size="small" /><View style={styles.flexCopy}><Text style={styles.workTitle}>{order.title}</Text><Text style={styles.workDetail}>{vehicleName(vehicle)} · {customer?.name ?? "Customer"}</Text><Text style={styles.workMeta}>{order.technician} · {order.bay} · Due {order.dueAt}</Text></View></View>
         <View style={styles.workCardBottom}><View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(8, (completed / Math.max(order.checklist.length, 1)) * 100)}%` }]} /></View><Text style={styles.progressText}>{completed}/{order.checklist.length} checks</Text><Text style={styles.workEstimate}>{formatMoney(order.estimate, settings.currency)}</Text></View>
       </Pressable>;
     })}</View>
     {!displayed.length ? <EmptyState icon="construct-outline" title="No work orders here" detail="Change the status filter or open a fresh work order." action="New work order" onAction={openAdd} /> : null}
-    <Sheet visible={Boolean(selected)} onClose={() => setSelected(null)} title={selected ? `${selected.number} · ${selected.title}` : "Work order"} subtitle={selected ? `${vehicleName(vehicleFor(vehicles, selected.vehicleId))} · ${selected.technician}` : undefined} footer={selected ? <PrimaryButton label={selected.status === "Collected" ? "Job complete" : "Move to next stage"} icon="arrow-forward" disabled={selected.status === "Collected"} onPress={() => { advanceWorkOrder(selected.id); setSelected((current) => current ? { ...current, status: nextStatus(current.status) } : current); }} /> : undefined}>
+    <Sheet visible={Boolean(selected)} onClose={() => setSelectedId(null)} title={selected ? `${selected.number} · ${selected.title}` : "Work order"} subtitle={selected ? `${vehicleName(vehicleFor(vehicles, selected.vehicleId))} · ${selected.technician}` : undefined} footer={selected ? <PrimaryButton label={selected.status === "Collected" ? "Job complete" : "Move to next stage"} icon="arrow-forward" disabled={selected.status === "Collected"} onPress={() => advanceWorkOrder(selected.id)} /> : undefined}>
       {selected ? <WorkOrderDetail order={selected} vehicles={vehicles} customers={customers} onToggle={(index) => toggleChecklistItem(selected.id, index)} /> : null}
     </Sheet>
     <Sheet visible={adding} onClose={() => setAdding(false)} title="New work order" subtitle="Give the team a precise brief before work begins." footer={<PrimaryButton label="Open work order" icon="checkmark" onPress={save} />}>
@@ -419,11 +410,10 @@ export function CalendarScreen({ isWide }: ScreenProps) {
     setAdding(false);
   };
   return <PageScroll>
-    <PageIntro eyebrow="Service diary" title="Calendar" detail="Make drop-offs, inspection windows and collections obvious to the whole team." action={<PrimaryButton label="Schedule" icon="add" onPress={openAdd} compact />} />
+    <PageIntro title="Calendar" detail="Drop-offs, services and collections." action={<PrimaryButton label="Schedule" icon="add" onPress={openAdd} compact />} />
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStrip}>{dateChoices.map((date) => { const iso = date.toISOString().slice(0, 10); const active = iso === selectedDate; return <Pressable key={iso} onPress={() => setSelectedDate(iso)} style={({ pressed }) => [styles.dateChip, active && styles.dateChipActive, pressed && styles.pressed]}><Text style={[styles.dateChipWeekday, active && styles.dateChipTextActive]}>{date.toLocaleDateString("en-IN", { weekday: "short" })}</Text><Text style={[styles.dateChipNumber, active && styles.dateChipTextActive]}>{date.getDate()}</Text></Pressable>; })}</ScrollView>
     <View style={[styles.calendarHeadline, isWide && styles.calendarHeadlineWide]}><View><Text style={styles.calendarTitle}>{shortDate.format(new Date(`${selectedDate}T12:00:00`))}</Text><Text style={styles.calendarSub}>{listed.length} appointment{listed.length === 1 ? "" : "s"} scheduled</Text></View><PrimaryButton label="Today" icon="today-outline" onPress={() => setSelectedDate(new Date().toISOString().slice(0, 10))} variant="light" compact /></View>
     {listed.length ? <View style={styles.calendarList}>{listed.map((event) => <CalendarItem key={event.id} event={event} vehicles={vehicles} customers={customers} />)}</View> : <EmptyState icon="calendar-outline" title="This day is open" detail="Use the schedule button to reserve a drop-off, service slot or collection." action="Schedule visit" onAction={openAdd} />}
-    <View style={styles.calendarFooterCard}><View style={styles.calendarFooterIcon}><Icon name="information-circle-outline" size={20} color={colors.ink} /></View><View style={styles.flexCopy}><Text style={styles.calendarFooterTitle}>A calmer front desk</Text><Text style={styles.calendarFooterDetail}>The day view is designed around actual customer moments: handover, service, inspection and collection.</Text></View></View>
     <Sheet visible={adding} onClose={() => setAdding(false)} title="Schedule appointment" subtitle="Reserve a time slot and give the workshop context." footer={<PrimaryButton label="Schedule appointment" icon="checkmark" onPress={save} />}>
       {error ? <FormError text={error} /> : null}<OwnerPicker customers={customers} value={draft.customerId} onChange={(customerId) => { const firstVehicle = vehicles.find((vehicle) => vehicle.customerId === customerId); setDraft((current) => ({ ...current, customerId, vehicleId: firstVehicle?.id ?? "" })); }} /><VehiclePicker vehicles={vehicles.filter((vehicle) => vehicle.customerId === draft.customerId)} value={draft.vehicleId} onChange={(vehicleId) => setDraft((current) => ({ ...current, vehicleId }))} /><FormField label="Appointment title" value={draft.title} onChangeText={(title) => setDraft((current) => ({ ...current, title }))} placeholder="e.g. Annual service check-in" /><View style={styles.formTwoCol}><View style={styles.formHalf}><FormField label="Date (YYYY-MM-DD)" value={draft.date} onChangeText={(date) => setDraft((current) => ({ ...current, date }))} placeholder="2026-07-23" /></View><View style={styles.formHalf}><FormField label="Time" value={draft.time} onChangeText={(time) => setDraft((current) => ({ ...current, time }))} placeholder="10:30" /></View></View><View style={styles.formTwoCol}><View style={styles.formHalf}><FormField label="Technician" value={draft.technician} onChangeText={(technician) => setDraft((current) => ({ ...current, technician }))} placeholder="Assign team member" /></View><View style={styles.formHalf}><FormField label="Duration" value={draft.duration} onChangeText={(duration) => setDraft((current) => ({ ...current, duration }))} placeholder="1h 30m" /></View></View><PickerField label="Visit type" options={eventKinds} value={draft.kind} onChange={(kind) => setDraft((current) => ({ ...current, kind }))} />
     </Sheet>
@@ -449,7 +439,7 @@ export function InventoryScreen({ isWide }: ScreenProps) {
   const openAdd = () => { setDraft(makeInventoryDraft()); setError(""); setAdding(true); };
   const save = () => { if (!draft.name.trim() || !draft.sku.trim()) { setError("Part name and SKU are required."); return; } addInventoryItem({ name: draft.name.trim(), sku: draft.sku.trim().toUpperCase(), category: draft.category.trim() || "General", quantity: Number(draft.quantity) || 0, reorderAt: Number(draft.reorderAt) || 0, unit: draft.unit.trim() || "pcs", price: Number(draft.price) || 0, supplier: draft.supplier.trim() || "Not recorded" }); setAdding(false); };
   return <PageScroll>
-    <PageIntro eyebrow="Stock control" title="Inventory" detail="See what is on the shelf, what is tied up in work, and what needs ordering." action={<PrimaryButton label="Add part" icon="add" onPress={openAdd} compact />} />
+    <PageIntro title="Inventory" detail="Stock levels and reordering." action={<PrimaryButton label="Add part" icon="add" onPress={openAdd} compact />} />
     <View style={[styles.inventoryMetrics, isWide && styles.inventoryMetricsWide]}><View style={styles.inventoryMetric}><Text style={styles.inventoryMetricValue}>{inventory.length}</Text><Text style={styles.inventoryMetricLabel}>part lines</Text></View><View style={styles.inventoryMetric}><Text style={[styles.inventoryMetricValue, lowCount > 0 && { color: colors.error }]}>{lowCount}</Text><Text style={styles.inventoryMetricLabel}>need reorder</Text></View><View style={[styles.inventoryMetric, styles.inventoryMetricLast]}><Text numberOfLines={1} style={styles.inventoryMetricValue}>{formatMoney(stockValue, settings.currency)}</Text><Text style={styles.inventoryMetricLabel}>on-hand value</Text></View></View>
     <SearchInput value={search} onChangeText={setSearch} placeholder="Search part name or SKU" /><View style={styles.filterSpacer}><FilterChips options={["All", "Low stock"] as const} selected={filter} onChange={setFilter} /></View>
     <View style={styles.cardList}>{displayed.map((item) => <InventoryCard key={item.id} item={item} currency={settings.currency} onAdjust={(amount) => adjustInventory(item.id, amount)} />)}</View>
@@ -467,33 +457,35 @@ function InventoryCard({ item, currency, onAdjust }: { item: InventoryItem; curr
 
 export function SettingsScreen() {
   const { settings, updateSettings, resetDemo, connection } = useGarage();
+  const { user, signOut } = useAuth();
   const [draft, setDraft] = useState(settings);
   const [confirming, setConfirming] = useState(false);
   useEffect(() => setDraft(settings), [settings]);
   const save = () => updateSettings(draft);
   return <PageScroll>
-    <PageIntro eyebrow="Garage profile" title="Settings" detail="Set the essential business details and choose how this local workspace behaves." />
+    <PageIntro title="Settings" detail="Business details and preferences." />
     <Card style={styles.settingsHero}><View style={styles.settingsHeroIcon}><Icon name="business-outline" size={25} color={colors.surface} /></View><View style={styles.flexCopy}><Text style={styles.settingsHeroTitle}>{settings.garageName}</Text><Text style={styles.settingsHeroDetail}>{settings.address}</Text></View><ConnectionHint /></Card>
+    <View style={styles.settingsSection}><SectionHeader title="Account" /><Card><View style={styles.accountRow}><Avatar initials={(user?.name ?? "?").split(" ").map((piece) => piece[0]).join("").slice(0, 2).toUpperCase()} size={46} inverse /><View style={styles.flexCopy}><Text style={styles.settingsHeroTitle}>{user?.name ?? "Guest"}</Text><Text style={styles.settingsHeroDetail}>@{user?.username ?? "guest"} · {user?.role ?? "Team member"}</Text></View><PrimaryButton label="Sign out" icon="log-out-outline" variant="light" compact onPress={() => void signOut()} /></View></Card></View>
     <View style={styles.settingsSection}><SectionHeader title="Business details" /><Card><FormField label="Garage name" value={draft.garageName} onChangeText={(garageName) => setDraft((current) => ({ ...current, garageName }))} /><FormField label="Owner or manager" value={draft.ownerName} onChangeText={(ownerName) => setDraft((current) => ({ ...current, ownerName }))} /><FormField label="Phone" value={draft.phone} onChangeText={(phone) => setDraft((current) => ({ ...current, phone }))} keyboardType="phone-pad" /><FormField label="Workshop address" value={draft.address} onChangeText={(address) => setDraft((current) => ({ ...current, address }))} multiline /><PickerField label="Default currency" options={["INR", "USD", "GBP"] as const} value={draft.currency} onChange={(currency) => setDraft((current) => ({ ...current, currency }))} /></Card><PrimaryButton label="Save business details" icon="checkmark" onPress={save} style={styles.settingsSave} /></View>
-    <View style={styles.settingsSection}><SectionHeader title="Notifications & display" /><Card><ToggleRow label="Service reminders" detail="Prompt the front desk to plan upcoming recommended services." value={draft.serviceReminders} onValueChange={(serviceReminders) => setDraft((current) => ({ ...current, serviceReminders }))} /><Divider /><ToggleRow label="Daily operations digest" detail="Show the workshop pulse on the dashboard at the start of the day." value={draft.dailyDigest} onValueChange={(dailyDigest) => setDraft((current) => ({ ...current, dailyDigest }))} /><Divider /><ToggleRow label="Compact number display" detail="Use abbreviated totals where a screen is short on space." value={draft.compactNumbers} onValueChange={(compactNumbers) => setDraft((current) => ({ ...current, compactNumbers }))} /></Card></View>
+    <View style={styles.settingsSection}><SectionHeader title="Notifications & display" /><Card><ToggleRow label="Service reminders" detail="Remind the desk about upcoming services." value={settings.serviceReminders} onValueChange={(serviceReminders) => updateSettings({ serviceReminders })} /><Divider /><ToggleRow label="Daily digest" detail="Show today's summary on the dashboard." value={settings.dailyDigest} onValueChange={(dailyDigest) => updateSettings({ dailyDigest })} /><Divider /><ToggleRow label="Compact numbers" detail="Abbreviate totals on small screens." value={settings.compactNumbers} onValueChange={(compactNumbers) => updateSettings({ compactNumbers })} /></Card></View>
     <View style={styles.settingsSection}><SectionHeader title="Demo workspace" /><Card><Text style={styles.demoTitle}>Restore the supplied garage data</Text><Text style={styles.demoDetail}>This resets locally created customers, jobs, appointments and inventory changes in this browser or Expo session.</Text><PrimaryButton label="Restore demo data" icon="refresh-outline" variant="danger" onPress={() => setConfirming(true)} compact style={styles.restoreButton} /></Card></View>
     <Sheet visible={confirming} onClose={() => setConfirming(false)} title="Restore demo workspace" subtitle="This action replaces the data in the current app session." footer={<PrimaryButton label="Yes, restore demo" icon="refresh-outline" variant="danger" onPress={() => { resetDemo(); setConfirming(false); }} />}><View style={styles.confirmCopy}><View style={styles.confirmIcon}><Icon name="alert-circle-outline" size={28} color={colors.error} /></View><Text style={styles.confirmTitle}>Start again with the supplied sample garage?</Text><Text style={styles.confirmDetail}>This is useful before a client demo. It cannot restore any changes made only in this local session.</Text></View></Sheet>
   </PageScroll>;
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+export function DetailRow({ label, value }: { label: string; value: string }) {
   return <View style={styles.detailRow}><Text style={styles.detailRowLabel}>{label}</Text><Text style={styles.detailRowValue}>{value}</Text></View>;
 }
 
-function FormError({ text }: { text: string }) {
+export function FormError({ text }: { text: string }) {
   return <View style={styles.formError}><Icon name="alert-circle-outline" size={18} color={colors.error} /><Text style={styles.formErrorText}>{text}</Text></View>;
 }
 
-function OwnerPicker({ customers, value, onChange }: { customers: Customer[]; value: string; onChange: (value: string) => void }) {
+export function OwnerPicker({ customers, value, onChange }: { customers: Customer[]; value: string; onChange: (value: string) => void }) {
   return <View style={styles.fieldGroup}><Text style={styles.fieldLabel}>Customer</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ownerPicker}>{customers.map((customer) => { const active = value === customer.id; return <Pressable key={customer.id} onPress={() => onChange(customer.id)} style={({ pressed }) => [styles.ownerPick, active && styles.ownerPickActive, pressed && styles.pressed]}><Avatar initials={customer.initials} size={25} inverse={active} /><Text numberOfLines={1} style={[styles.ownerPickText, active && styles.ownerPickTextActive]}>{customer.name}</Text></Pressable>; })}</ScrollView></View>;
 }
 
-function VehiclePicker({ vehicles, value, onChange }: { vehicles: Vehicle[]; value: string; onChange: (value: string) => void }) {
+export function VehiclePicker({ vehicles, value, onChange }: { vehicles: Vehicle[]; value: string; onChange: (value: string) => void }) {
   return <View style={styles.fieldGroup}><Text style={styles.fieldLabel}>Vehicle</Text>{vehicles.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ownerPicker}>{vehicles.map((vehicle) => { const active = value === vehicle.id; return <Pressable key={vehicle.id} onPress={() => onChange(vehicle.id)} style={({ pressed }) => [styles.vehiclePick, active && styles.vehiclePickActive, pressed && styles.pressed]}><VehicleArt tone={vehicle.imageTone} size="small" /><View style={styles.vehiclePickCopy}><Text numberOfLines={1} style={[styles.vehiclePickTitle, active && styles.ownerPickTextActive]}>{vehicle.make} {vehicle.model}</Text><Text style={[styles.vehiclePickPlate, active && styles.vehiclePickPlateActive]}>{vehicle.plate}</Text></View></Pressable>; })}</ScrollView> : <Text style={styles.noVehicleForCustomer}>This customer needs a vehicle before a work order or appointment can be opened.</Text>}</View>;
 }
 
@@ -509,30 +501,28 @@ const styles = StyleSheet.create({
   pageIntro: { gap: 16 },
   pageIntroCopy: { gap: 6 },
   pageAction: { alignSelf: "flex-start" },
-  pageTitle: { color: colors.ink, fontFamily: font.display, fontSize: 36, fontWeight: "700", letterSpacing: -0.8 },
-  sectionTitle: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: "700", letterSpacing: -0.25 },
+  pageTitle: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: "800", letterSpacing: -0.3 },
+  sectionTitle: { color: colors.ink, fontFamily: font.display, fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
   pageDetail: { color: colors.inkMuted, fontSize: 14, lineHeight: 20, maxWidth: 560 },
   dashboardWelcome: { gap: 12, paddingTop: 4 },
-  dashboardGreeting: { color: colors.ink, fontFamily: font.display, fontSize: 31, fontWeight: "700", letterSpacing: -0.7, marginTop: 5 },
+  dashboardGreeting: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: "800", letterSpacing: -0.3 },
   dashboardDate: { color: colors.inkMuted, fontSize: 13, marginTop: 5 },
   connectionHint: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.soft },
   connectionConnected: { backgroundColor: "#EAF8EF" }, connectionDot: { width: 7, height: 7, borderRadius: 4 }, connectionDotConnected: { backgroundColor: colors.success }, connectionDotLocal: { backgroundColor: colors.inkMuted }, connectionDotOffline: { backgroundColor: colors.error }, connectionText: { color: colors.inkMuted, fontSize: 11, fontWeight: "800" }, connectionTextConnected: { color: colors.success },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 }, metricGridWide: { gap: 14 },
   dashboardTwoColumn: { gap: 16 }, dashboardTwoColumnWide: { flexDirection: "row", alignItems: "stretch" }, flexCard: { flex: 1 },
-  cardIntro: { color: colors.inkMuted, fontSize: 13, lineHeight: 19, marginBottom: 17 },
-  stageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginBottom: 18 }, stageTile: { flexGrow: 1, flexBasis: 124, minHeight: 119, borderRadius: 13, backgroundColor: colors.soft, padding: 12 }, stageIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, marginBottom: 11 }, stageCount: { color: colors.ink, fontFamily: font.display, fontSize: 25, fontWeight: "700" }, stageLabel: { color: colors.inkMuted, fontSize: 11, fontWeight: "700", marginTop: 4 },
+  stageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginBottom: 18 }, stageTile: { flexGrow: 1, flexBasis: 124, minHeight: 119, borderRadius: 13, backgroundColor: colors.soft, padding: 12 }, stageIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, marginBottom: 11 }, stageCount: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: "800" }, stageLabel: { color: colors.inkMuted, fontSize: 11, fontWeight: "700", marginTop: 4 },
   urgentCallout: { flexDirection: "row", gap: 11, alignItems: "center", paddingTop: 16 }, urgentIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#FBECEE", alignItems: "center", justifyContent: "center" }, urgentTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" }, urgentDetail: { color: colors.inkMuted, fontSize: 11, lineHeight: 16, marginTop: 3 }, flexCopy: { flex: 1, minWidth: 0 },
   timelineRow: { minHeight: 73, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11 }, timelineTime: { width: 45, alignSelf: "stretch", paddingTop: 2 }, timelineTimeText: { color: colors.ink, fontSize: 12, fontWeight: "800" }, timelineLine: { width: 1, flex: 1, backgroundColor: colors.line, alignSelf: "center", marginTop: 6 }, timelineCopy: { flex: 1, gap: 4 }, timelineTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" }, timelineDetail: { color: colors.inkMuted, fontSize: 11, lineHeight: 16 },
   orderMiniRow: { minHeight: 79, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11 }, orderMiniCopy: { flex: 1, minWidth: 0, gap: 4 }, orderMiniTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" }, orderMiniDetail: { color: colors.inkMuted, fontSize: 10.5, lineHeight: 15 }, orderMiniMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }, orderMiniMetaText: { color: colors.inkFaint, fontSize: 10.5, fontWeight: "700" },
-  quickColumn: { gap: 14, flex: 1 }, quickBrief: { borderRadius: radius.md, backgroundColor: colors.soft, padding: 19 }, quickBriefLabel: { color: colors.inkMuted }, quickBriefTitle: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: "700", marginTop: 8 }, quickBriefDetail: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, marginTop: 7 }, quickBriefButton: { alignSelf: "flex-start", marginTop: 15 }, fleetCta: { minHeight: 92, borderRadius: radius.md, padding: 17, backgroundColor: colors.ink, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 15 }, fleetCtaEyebrow: { color: "#BEBEBE", fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1 }, fleetCtaTitle: { color: colors.surface, fontSize: 15, fontWeight: "800", marginTop: 6 }, fleetCtaArrow: { width: 37, height: 37, borderRadius: 12, backgroundColor: "#303030", alignItems: "center", justifyContent: "center" },
   filterSpacer: { marginTop: -8 }, listCaption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: -3 }, listCaptionText: { color: colors.ink, fontSize: 12, fontWeight: "800" }, listCaptionHint: { color: colors.inkFaint, fontSize: 11 }, cardList: { gap: 10 },
   vehicleCard: { minHeight: 110, padding: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, borderRadius: radius.md, flexDirection: "row", alignItems: "center", gap: 12 }, vehicleCardCopy: { flex: 1, minWidth: 0, gap: 4 }, rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, vehicleCardTitle: { color: colors.ink, fontSize: 15, fontWeight: "800", flex: 1 }, vehiclePlate: { color: colors.inkMuted, fontSize: 11, fontWeight: "800", letterSpacing: 0.35 }, vehicleCardDetail: { color: colors.inkFaint, fontSize: 10.5 }, ownerInline: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }, ownerInlineText: { color: colors.inkMuted, fontSize: 10.5, fontWeight: "700" }, ownerInlineHint: { color: colors.info, fontSize: 10, fontWeight: "800" },
   sheetStack: { gap: 16 }, vehicleDetailHero: { flexDirection: "row", alignItems: "center", gap: 13 }, detailHeroLabel: { color: colors.inkFaint, fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 5 }, detailHeroText: { color: colors.inkMuted, fontSize: 12, marginTop: 7 }, ownerDetail: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 11 }, ownerDetailName: { color: colors.ink, fontSize: 14, fontWeight: "800" }, ownerDetailMeta: { color: colors.inkMuted, fontSize: 12, marginTop: 3 }, detailRows: { gap: 0, marginTop: 9 }, detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 15, paddingTop: 11 }, detailRowLabel: { color: colors.inkMuted, fontSize: 12 }, detailRowValue: { color: colors.ink, fontSize: 12, fontWeight: "800", textAlign: "right", flexShrink: 1 }, statusChoiceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 9 }, statusChoice: { flexGrow: 1, flexBasis: 130, minHeight: 45, borderRadius: 11, borderWidth: 1, borderColor: colors.line, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8 }, statusChoiceActive: { backgroundColor: colors.ink, borderColor: colors.ink }, statusChoiceText: { color: colors.ink, fontSize: 11, fontWeight: "800" }, statusChoiceTextActive: { color: colors.surface },
   formError: { flexDirection: "row", gap: 8, alignItems: "center", borderRadius: 12, backgroundColor: "#FBECEE", padding: 12, marginBottom: 15 }, formErrorText: { color: colors.error, flex: 1, fontSize: 12, lineHeight: 17, fontWeight: "700" }, formTwoCol: { flexDirection: "row", gap: 10 }, formHalf: { flex: 1, minWidth: 0 }, formThreeCol: { flexDirection: "row", gap: 8 }, formThird: { flex: 1, minWidth: 0 }, fieldGroup: { gap: 7, marginBottom: 16 }, fieldLabel: { color: colors.ink, fontSize: 12, fontWeight: "800" },
   customerSummary: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: -5 }, customerSummaryStrong: { color: colors.ink, fontSize: 12, fontWeight: "800" }, customerSummaryText: { color: colors.inkMuted, fontSize: 12 }, customerCard: { minHeight: 90, padding: 13, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, flexDirection: "row", alignItems: "center", gap: 12 }, customerCardCopy: { flex: 1, minWidth: 0, gap: 4 }, customerName: { color: colors.ink, fontSize: 15, fontWeight: "800", flex: 1 }, customerContact: { color: colors.inkMuted, fontSize: 11 }, customerMeta: { color: colors.inkFaint, fontSize: 10.5, marginTop: 1 }, noteText: { color: colors.inkMuted, fontSize: 13, lineHeight: 19, marginTop: 10 }, compactVehicleRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9 }, compactVehicleTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" }, compactVehicleDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 3 }, compactOrderRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9 }, orderNumberBox: { paddingVertical: 6, paddingHorizontal: 7, borderRadius: 8, backgroundColor: colors.soft }, orderNumberText: { color: colors.ink, fontSize: 10, fontWeight: "800" }, mutedLine: { color: colors.inkMuted, fontSize: 12, marginTop: 3 },
-  workOrderControls: { gap: 11 }, workOrderControlsWide: { flexDirection: "row", alignItems: "center" }, workSearch: { flex: 1 }, workFilter: { maxWidth: "100%" }, workBoardHeader: { flexDirection: "row", justifyContent: "space-between", gap: 10, alignItems: "center", marginTop: -2 }, workBoardHint: { color: colors.inkFaint, fontSize: 11 }, workCard: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 12 }, workCardHead: { flexDirection: "row", alignItems: "center", gap: 7 }, workNumber: { backgroundColor: colors.ink, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, workNumberText: { color: colors.surface, fontSize: 10, fontWeight: "800" }, workCardMain: { flexDirection: "row", alignItems: "center", gap: 11 }, workTitle: { color: colors.ink, fontSize: 15, fontWeight: "800" }, workDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 4 }, workMeta: { color: colors.inkFaint, fontSize: 10.5, marginTop: 4 }, workCardBottom: { flexDirection: "row", alignItems: "center", gap: 8 }, progressTrack: { flex: 1, height: 5, backgroundColor: colors.soft, borderRadius: 3, overflow: "hidden" }, progressFill: { height: "100%", backgroundColor: colors.ink, borderRadius: 3 }, progressText: { color: colors.inkFaint, fontSize: 10, fontWeight: "700" }, workEstimate: { color: colors.ink, fontSize: 11, fontWeight: "800" }, orderDetailTop: { flexDirection: "row", alignItems: "center", gap: 10 }, orderDetailEstimate: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: "700", textAlign: "right" }, orderDetailDue: { color: colors.inkMuted, fontSize: 11, textAlign: "right", marginTop: 2 }, detailBriefTitle: { color: colors.ink, fontSize: 15, fontWeight: "800", marginTop: 10 }, detailBriefCopy: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, marginTop: 6, marginBottom: 14 }, serviceAssignment: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 14 }, checklistHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 10 }, checklistProgress: { color: colors.inkMuted, fontSize: 11, fontWeight: "800" }, checklistBox: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, overflow: "hidden" }, checklistRow: { minHeight: 54, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line }, checkCircle: { width: 23, height: 23, borderRadius: 12, borderWidth: 1.5, borderColor: "#B9B9B9", alignItems: "center", justifyContent: "center" }, checkCircleDone: { backgroundColor: colors.ink, borderColor: colors.ink }, checkLabel: { color: colors.ink, fontSize: 13, fontWeight: "700", flex: 1 }, checkLabelDone: { color: colors.inkMuted, textDecorationLine: "line-through" },
-  dateStrip: { gap: 8, paddingRight: 16 }, dateChip: { width: 54, height: 62, borderRadius: 14, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center", gap: 3 }, dateChipActive: { backgroundColor: colors.ink }, dateChipWeekday: { color: colors.inkMuted, fontSize: 10, fontWeight: "800", textTransform: "uppercase" }, dateChipNumber: { color: colors.ink, fontSize: 18, fontWeight: "800" }, dateChipTextActive: { color: colors.surface }, calendarHeadline: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 15, marginTop: 2 }, calendarHeadlineWide: { marginTop: 6 }, calendarTitle: { color: colors.ink, fontFamily: font.display, fontSize: 25, fontWeight: "700" }, calendarSub: { color: colors.inkMuted, fontSize: 12, marginTop: 4 }, calendarList: { gap: 0 }, calendarItem: { minHeight: 116, flexDirection: "row", gap: 10 }, calendarTime: { width: 43, paddingTop: 17, alignItems: "flex-end" }, calendarTimeValue: { color: colors.ink, fontSize: 12, fontWeight: "800" }, calendarDuration: { color: colors.inkFaint, fontSize: 9.5, marginTop: 3 }, calendarRail: { width: 14, alignItems: "center" }, calendarRailDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.ink, marginTop: 20 }, calendarRailLine: { width: 1, backgroundColor: colors.line, flex: 1 }, calendarEventCard: { flex: 1, padding: 13, marginBottom: 10 }, calendarKind: { flexDirection: "row", gap: 5, alignItems: "center" }, calendarKindText: { color: colors.ink, fontSize: 10.5, fontWeight: "800" }, calendarTech: { color: colors.inkFaint, fontSize: 10.5, fontWeight: "700" }, calendarEventTitle: { color: colors.ink, fontSize: 14, fontWeight: "800", marginTop: 10 }, calendarEventDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 4 }, calendarFooterCard: { backgroundColor: colors.soft, borderRadius: radius.md, padding: 16, flexDirection: "row", gap: 11, alignItems: "flex-start" }, calendarFooterIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }, calendarFooterTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" }, calendarFooterDetail: { color: colors.inkMuted, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
-  inventoryMetrics: { borderRadius: radius.md, overflow: "hidden", backgroundColor: colors.ink, flexDirection: "row" }, inventoryMetricsWide: { maxWidth: 680 }, inventoryMetric: { flex: 1, padding: 15, gap: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: "#393939" }, inventoryMetricLast: { borderRightWidth: 0 }, inventoryMetricValue: { color: colors.surface, fontFamily: font.display, fontSize: 21, fontWeight: "700" }, inventoryMetricLabel: { color: "#ADADAD", fontSize: 10.5, fontWeight: "700" }, inventoryCard: { padding: 14, gap: 13 }, inventoryCardTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 }, partIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" }, inventoryName: { color: colors.ink, fontSize: 13.5, fontWeight: "800", flex: 1, marginRight: 8 }, inventorySku: { color: colors.inkMuted, fontSize: 10.5, marginTop: 4 }, stockOkay: { color: colors.success, fontSize: 10.5, fontWeight: "800" }, inventoryCardBottom: { paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }, stockNumber: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: "700" }, stockUnit: { color: colors.inkMuted, fontSize: 12, fontFamily: font.body, fontWeight: "700" }, reorderText: { color: colors.inkFaint, fontSize: 10.5, marginTop: 2 }, stockActionGroup: { flexDirection: "row", alignItems: "center", gap: 6 }, stockPill: { paddingHorizontal: 8, paddingVertical: 7, backgroundColor: colors.soft, borderRadius: 9 }, stockPillText: { color: colors.ink, fontSize: 10.5, fontWeight: "800" },
-  settingsHero: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.soft }, settingsHeroIcon: { width: 48, height: 48, borderRadius: 15, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" }, settingsHeroTitle: { color: colors.ink, fontSize: 15, fontWeight: "800" }, settingsHeroDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 4 }, settingsSection: { gap: 10 }, settingsSave: { alignSelf: "flex-start" }, demoTitle: { color: colors.ink, fontSize: 14, fontWeight: "800", marginTop: 8 }, demoDetail: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }, restoreButton: { alignSelf: "flex-start", marginTop: 15 }, confirmCopy: { alignItems: "center", paddingHorizontal: 18, paddingVertical: 15 }, confirmIcon: { width: 57, height: 57, borderRadius: 18, backgroundColor: "#FBECEE", alignItems: "center", justifyContent: "center" }, confirmTitle: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: "700", textAlign: "center", marginTop: 16 }, confirmDetail: { color: colors.inkMuted, fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 8 },
+  workOrderControls: { gap: 11 }, workOrderControlsWide: { flexDirection: "row", alignItems: "center" }, workSearch: { flex: 1 }, workFilter: { maxWidth: "100%" }, workBoardHeader: { flexDirection: "row", justifyContent: "space-between", gap: 10, alignItems: "center", marginTop: -2 }, workBoardHint: { color: colors.inkFaint, fontSize: 11 }, workCard: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 12 }, workCardHead: { flexDirection: "row", alignItems: "center", gap: 7 }, workNumber: { backgroundColor: colors.ink, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, workNumberText: { color: colors.surface, fontSize: 10, fontWeight: "800" }, workCardMain: { flexDirection: "row", alignItems: "center", gap: 11 }, workTitle: { color: colors.ink, fontSize: 15, fontWeight: "800" }, workDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 4 }, workMeta: { color: colors.inkFaint, fontSize: 10.5, marginTop: 4 }, workCardBottom: { flexDirection: "row", alignItems: "center", gap: 8 }, progressTrack: { flex: 1, height: 5, backgroundColor: colors.soft, borderRadius: 3, overflow: "hidden" }, progressFill: { height: "100%", backgroundColor: colors.ink, borderRadius: 3 }, progressText: { color: colors.inkFaint, fontSize: 10, fontWeight: "700" }, workEstimate: { color: colors.ink, fontSize: 11, fontWeight: "800" }, orderDetailTop: { flexDirection: "row", alignItems: "center", gap: 10 }, orderDetailEstimate: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: "800", textAlign: "right" }, orderDetailDue: { color: colors.inkMuted, fontSize: 11, textAlign: "right", marginTop: 2 }, detailBriefTitle: { color: colors.ink, fontSize: 15, fontWeight: "800", marginTop: 10 }, detailBriefCopy: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, marginTop: 6, marginBottom: 14 }, serviceAssignment: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 14 }, checklistHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 10 }, checklistProgress: { color: colors.inkMuted, fontSize: 11, fontWeight: "800" }, checklistBox: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, overflow: "hidden" }, checklistRow: { minHeight: 54, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line }, checkCircle: { width: 23, height: 23, borderRadius: 12, borderWidth: 1.5, borderColor: "#B9B9B9", alignItems: "center", justifyContent: "center" }, checkCircleDone: { backgroundColor: colors.ink, borderColor: colors.ink }, checkLabel: { color: colors.ink, fontSize: 13, fontWeight: "700", flex: 1 }, checkLabelDone: { color: colors.inkMuted, textDecorationLine: "line-through" },
+  dateStrip: { gap: 8, paddingRight: 16 }, dateChip: { width: 54, height: 62, borderRadius: 14, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center", gap: 3 }, dateChipActive: { backgroundColor: colors.ink }, dateChipWeekday: { color: colors.inkMuted, fontSize: 10, fontWeight: "800", textTransform: "uppercase" }, dateChipNumber: { color: colors.ink, fontSize: 18, fontWeight: "800" }, dateChipTextActive: { color: colors.surface }, calendarHeadline: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 15, marginTop: 2 }, calendarHeadlineWide: { marginTop: 6 }, calendarTitle: { color: colors.ink, fontFamily: font.display, fontSize: 18, fontWeight: "800" }, calendarSub: { color: colors.inkMuted, fontSize: 12, marginTop: 4 }, calendarList: { gap: 0 }, calendarItem: { minHeight: 116, flexDirection: "row", gap: 10 }, calendarTime: { width: 43, paddingTop: 17, alignItems: "flex-end" }, calendarTimeValue: { color: colors.ink, fontSize: 12, fontWeight: "800" }, calendarDuration: { color: colors.inkFaint, fontSize: 9.5, marginTop: 3 }, calendarRail: { width: 14, alignItems: "center" }, calendarRailDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.ink, marginTop: 20 }, calendarRailLine: { width: 1, backgroundColor: colors.line, flex: 1 }, calendarEventCard: { flex: 1, padding: 13, marginBottom: 10 }, calendarKind: { flexDirection: "row", gap: 5, alignItems: "center" }, calendarKindText: { color: colors.ink, fontSize: 10.5, fontWeight: "800" }, calendarTech: { color: colors.inkFaint, fontSize: 10.5, fontWeight: "700" }, calendarEventTitle: { color: colors.ink, fontSize: 14, fontWeight: "800", marginTop: 10 }, calendarEventDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 4 }, calendarFooterCard: { backgroundColor: colors.soft, borderRadius: radius.md, padding: 16, flexDirection: "row", gap: 11, alignItems: "flex-start" }, calendarFooterIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" }, calendarFooterTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" }, calendarFooterDetail: { color: colors.inkMuted, fontSize: 11.5, lineHeight: 17, marginTop: 4 },
+  inventoryMetrics: { borderRadius: radius.md, overflow: "hidden", backgroundColor: colors.ink, flexDirection: "row" }, inventoryMetricsWide: { maxWidth: 680 }, inventoryMetric: { flex: 1, padding: 15, gap: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: "#393939" }, inventoryMetricLast: { borderRightWidth: 0 }, inventoryMetricValue: { color: colors.surface, fontFamily: font.display, fontSize: 18, fontWeight: "800" }, inventoryMetricLabel: { color: "#ADADAD", fontSize: 10.5, fontWeight: "700" }, inventoryCard: { padding: 14, gap: 13 }, inventoryCardTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 }, partIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" }, inventoryName: { color: colors.ink, fontSize: 13.5, fontWeight: "800", flex: 1, marginRight: 8 }, inventorySku: { color: colors.inkMuted, fontSize: 10.5, marginTop: 4 }, stockOkay: { color: colors.success, fontSize: 10.5, fontWeight: "800" }, inventoryCardBottom: { paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }, stockNumber: { color: colors.ink, fontFamily: font.display, fontSize: 18, fontWeight: "800" }, stockUnit: { color: colors.inkMuted, fontSize: 12, fontFamily: font.body, fontWeight: "700" }, reorderText: { color: colors.inkFaint, fontSize: 10.5, marginTop: 2 }, stockActionGroup: { flexDirection: "row", alignItems: "center", gap: 6 }, stockPill: { paddingHorizontal: 8, paddingVertical: 7, backgroundColor: colors.soft, borderRadius: 9 }, stockPillText: { color: colors.ink, fontSize: 10.5, fontWeight: "800" },
+  settingsHero: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.soft }, accountRow: { flexDirection: "row", alignItems: "center", gap: 12 }, settingsHeroIcon: { width: 48, height: 48, borderRadius: 15, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" }, settingsHeroTitle: { color: colors.ink, fontSize: 15, fontWeight: "800" }, settingsHeroDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 4 }, settingsSection: { gap: 10 }, settingsSave: { alignSelf: "flex-start" }, demoTitle: { color: colors.ink, fontSize: 14, fontWeight: "800", marginTop: 8 }, demoDetail: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }, restoreButton: { alignSelf: "flex-start", marginTop: 15 }, confirmCopy: { alignItems: "center", paddingHorizontal: 18, paddingVertical: 15 }, confirmIcon: { width: 57, height: 57, borderRadius: 18, backgroundColor: "#FBECEE", alignItems: "center", justifyContent: "center" }, confirmTitle: { color: colors.ink, fontFamily: font.display, fontSize: 18, fontWeight: "800", textAlign: "center", marginTop: 16 }, confirmDetail: { color: colors.inkMuted, fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 8 },
   ownerPicker: { gap: 8, paddingRight: 12 }, ownerPick: { minWidth: 116, height: 42, borderRadius: 12, paddingHorizontal: 8, flexDirection: "row", gap: 7, alignItems: "center", backgroundColor: colors.soft }, ownerPickActive: { backgroundColor: colors.ink }, ownerPickText: { color: colors.ink, fontSize: 11, fontWeight: "800", flex: 1 }, ownerPickTextActive: { color: colors.surface }, vehiclePick: { minWidth: 145, padding: 7, borderRadius: 13, flexDirection: "row", gap: 7, alignItems: "center", backgroundColor: colors.soft }, vehiclePickActive: { backgroundColor: colors.ink }, vehiclePickCopy: { flex: 1, minWidth: 0 }, vehiclePickTitle: { color: colors.ink, fontSize: 11, fontWeight: "800" }, vehiclePickPlate: { color: colors.inkMuted, fontSize: 9.5, marginTop: 2 }, vehiclePickPlateActive: { color: "#BEBEBE" }, noVehicleForCustomer: { color: colors.error, fontSize: 12, lineHeight: 18, padding: 12, backgroundColor: "#FBECEE", borderRadius: 12 },
 });

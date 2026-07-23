@@ -11,9 +11,14 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query, Response, status
-from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from .auth import SessionAuth
 from .config import settings
 from .schemas import (
     AppointmentCreate,
@@ -27,6 +32,7 @@ from .schemas import (
     InvoiceUpdate,
     JobCreate,
     JobUpdate,
+    LoginRequest,
     PaymentCreate,
     StockAdjustment,
     VehicleCreate,
@@ -36,13 +42,23 @@ from .schemas import (
 from .store import LocalStore
 
 
+API = settings.api_prefix
+store = LocalStore(settings.data_file, persist=settings.persist_data)
+auth = SessionAuth(store, public_paths={"/", "/health", f"{API}/health", f"{API}/auth/login"})
+
+# `apps/mobile/dist` appears after `npx expo export --platform web`; when it
+# exists this one process serves both the API and the web application.
+WEB_DIST = Path(__file__).resolve().parents[2] / "apps" / "mobile" / "dist"
+
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
     description=(
         "Local-first garage operations API for customers, vehicles, work orders, "
-        "appointments, inventory and invoices."
+        "appointments, inventory and invoices. Sign in via POST /api/auth/login "
+        "and send the returned token as an Authorization: Bearer header."
     ),
+    dependencies=[Depends(auth.guard)],
 )
 app.add_middleware(
     CORSMiddleware,
@@ -51,9 +67,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-store = LocalStore(settings.data_file, persist=settings.persist_data)
-API = settings.api_prefix
 
 
 def now_iso() -> str:
@@ -128,9 +141,27 @@ def calculate_invoice(payload: dict[str, Any], previous: dict[str, Any] | None =
     }
 
 
-@app.get("/", tags=["system"])
-def root() -> dict[str, str]:
+@app.get("/", tags=["system"], include_in_schema=False)
+def root() -> Any:
+    if (WEB_DIST / "index.html").exists():
+        return FileResponse(WEB_DIST / "index.html")
     return {"name": settings.app_name, "docs": "/docs", "health": "/health"}
+
+
+@app.post(f"{API}/auth/login", tags=["auth"])
+def login(payload: LoginRequest) -> dict[str, Any]:
+    return auth.login(payload.username, payload.password)
+
+
+@app.post(f"{API}/auth/logout", tags=["auth"])
+def logout(request: Request) -> dict[str, str]:
+    auth.logout(auth.bearer_token(request))
+    return {"message": "Signed out."}
+
+
+@app.get(f"{API}/auth/me", tags=["auth"])
+def me(request: Request) -> dict[str, Any]:
+    return request.state.user
 
 
 @app.get("/health", tags=["system"])
@@ -507,6 +538,7 @@ def workspace_status(value: str) -> str:
         "scheduled": "Waiting",
         "checked_in": "Waiting",
         "in_progress": "In service",
+        "in_service": "In service",
         "quality_check": "Quality check",
         "ready": "Ready",
         "completed": "Collected",
@@ -633,12 +665,50 @@ def workspace() -> dict[str, Any]:
         }
         for row in appointments
     ]
+    local_invoices = [
+        {
+            "id": row["id"],
+            "number": row.get("invoice_number", row["id"]),
+            "customerId": row["customer_id"],
+            "vehicleId": row.get("vehicle_id"),
+            "workOrderId": row.get("job_id"),
+            "status": row.get("status", "draft"),
+            "lineItems": [
+                {
+                    "description": item.get("description", ""),
+                    "quantity": float(item.get("quantity", 0)),
+                    "unitPrice": float(item.get("unit_price", 0)),
+                    "total": float(item.get("total", 0)),
+                }
+                for item in row.get("line_items", [])
+            ],
+            "subtotal": float(row.get("subtotal", 0)),
+            "discount": float(row.get("discount", 0)),
+            "taxRate": float(row.get("tax_rate", 0)),
+            "taxAmount": float(row.get("tax_amount", 0)),
+            "total": float(row.get("total", 0)),
+            "amountPaid": float(row.get("amount_paid", 0)),
+            "balanceDue": float(row.get("balance_due", 0)),
+            "issuedAt": workspace_date(row.get("issued_at")),
+            "payments": [
+                {
+                    "id": payment.get("id", ""),
+                    "amount": float(payment.get("amount", 0)),
+                    "method": payment.get("method", "cash"),
+                    "paidAt": workspace_date(payment.get("paid_at")),
+                }
+                for payment in row.get("payments", [])
+            ],
+        }
+        for row in invoices
+    ]
     return {
         "customers": local_customers,
         "vehicles": local_vehicles,
         "workOrders": local_orders,
         "inventory": local_inventory,
         "events": local_events,
+        "invoices": local_invoices,
         "settings": {
             "garageName": settings_row["garage_name"],
             "ownerName": "Garage owner",
@@ -656,3 +726,8 @@ def workspace() -> dict[str, Any]:
 def reset_demo() -> dict[str, str]:
     store.reset()
     return {"message": "Demo workspace restored."}
+
+
+if WEB_DIST.exists():
+    # Catch-all mount registered last: API routes above always win.
+    app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

@@ -1,5 +1,6 @@
 export type VehicleStatus = "Waiting" | "In service" | "Quality check" | "Ready" | "Collected";
 export type JobPriority = "Standard" | "Priority" | "Urgent";
+export type InvoiceStatus = "draft" | "issued" | "partial" | "paid";
 export type ScreenName =
   | "dashboard"
   | "vehicles"
@@ -7,7 +8,15 @@ export type ScreenName =
   | "workorders"
   | "calendar"
   | "inventory"
+  | "billing"
   | "settings";
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  name: string;
+  role: string;
+}
 
 export interface Customer {
   id: string;
@@ -78,6 +87,39 @@ export interface CalendarEvent {
   kind: "Drop-off" | "Service" | "Collection" | "Inspection";
 }
 
+export interface InvoiceLineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface InvoicePayment {
+  id: string;
+  amount: number;
+  method: string;
+  paidAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  customerId: string;
+  vehicleId?: string | null;
+  workOrderId?: string | null;
+  status: InvoiceStatus;
+  lineItems: InvoiceLineItem[];
+  subtotal: number;
+  discount: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  issuedAt: string;
+  payments: InvoicePayment[];
+}
+
 export interface GarageSettings {
   garageName: string;
   ownerName: string;
@@ -95,5 +137,6 @@ export interface GarageState {
   workOrders: WorkOrder[];
   inventory: InventoryItem[];
   events: CalendarEvent[];
+  invoices: Invoice[];
   settings: GarageSettings;
 }

@@ -100,6 +100,11 @@ const badgePalette: Record<string, { background: string; text: string; dot: stri
   Priority: { background: "#FFF5E8", text: "#A85B00", dot: "#A85B00" },
   Standard: { background: "#F2F2F2", text: "#575757", dot: "#575757" },
   "Low stock": { background: "#FBECEE", text: colors.error, dot: colors.error },
+  Draft: { background: "#F2F2F2", text: "#575757", dot: "#707070" },
+  Issued: { background: "#EEF3FF", text: "#2457D6", dot: "#2457D6" },
+  Partial: { background: "#FFF5E8", text: "#A85B00", dot: "#A85B00" },
+  Paid: { background: "#EAF8EF", text: "#157A45", dot: "#157A45" },
+  Overdue: { background: "#FBECEE", text: colors.error, dot: colors.error },
 };
 
 export function StatusBadge({ status, small = false }: { status: VehicleStatus | JobPriority | string; small?: boolean }) {
@@ -212,6 +217,9 @@ export function FormField({
   multiline = false,
   keyboardType,
   autoCapitalize = "sentences",
+  secureTextEntry = false,
+  onSubmitEditing,
+  trailing,
 }: {
   label: string;
   value: string;
@@ -220,20 +228,28 @@ export function FormField({
   multiline?: boolean;
   keyboardType?: TextInputProps["keyboardType"];
   autoCapitalize?: TextInputProps["autoCapitalize"];
+  secureTextEntry?: boolean;
+  onSubmitEditing?: () => void;
+  trailing?: ReactNode;
 }) {
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.inkFaint}
-        multiline={multiline}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        style={[styles.fieldInput, multiline && styles.fieldInputMultiline]}
-      />
+      <View style={styles.fieldInputWrap}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.inkFaint}
+          multiline={multiline}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          secureTextEntry={secureTextEntry}
+          onSubmitEditing={onSubmitEditing}
+          style={[styles.fieldInput, multiline && styles.fieldInputMultiline, Boolean(trailing) && styles.fieldInputTrailing]}
+        />
+        {trailing ? <View style={styles.fieldTrailing}>{trailing}</View> : null}
+      </View>
     </View>
   );
 }
@@ -361,7 +377,7 @@ const styles = StyleSheet.create({
   vehicleArt: { overflow: "hidden", justifyContent: "center", alignItems: "center" },
   vehicleGlow: { position: "absolute", width: "110%", height: "45%", borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.18)", top: -8, transform: [{ rotate: "-12deg" }] },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  sectionTitle: { color: colors.ink, fontFamily: font.display, fontSize: 23, fontWeight: "700", letterSpacing: -0.3 },
+  sectionTitle: { color: colors.ink, fontFamily: font.display, fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
   sectionAction: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 5 },
   sectionActionText: { color: colors.ink, fontSize: 12, fontWeight: "800" },
   metricCard: { minHeight: 158, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, padding: 16, flexGrow: 1, flexBasis: 155 },
@@ -369,7 +385,7 @@ const styles = StyleSheet.create({
   metricIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: colors.soft, justifyContent: "center", alignItems: "center", marginBottom: 18 },
   metricIconInverse: { backgroundColor: "#2B2B2B" },
   metricLabel: { color: colors.inkMuted, fontSize: 12, fontWeight: "700", marginBottom: 5 },
-  metricValue: { color: colors.ink, fontFamily: font.display, fontSize: 29, fontWeight: "700", letterSpacing: -0.6 },
+  metricValue: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: "800", letterSpacing: -0.4 },
   metricDetail: { color: colors.inkFaint, fontSize: 11, fontWeight: "600", marginTop: 6 },
   metricTextInverse: { color: colors.surface },
   metricDetailInverse: { color: "#AEAEAE" },
@@ -383,8 +399,11 @@ const styles = StyleSheet.create({
   filterChipTextActive: { color: colors.surface },
   fieldGroup: { gap: 7, marginBottom: 16 },
   fieldLabel: { color: colors.ink, fontSize: 12, fontWeight: "800" },
+  fieldInputWrap: { position: "relative", justifyContent: "center" },
   fieldInput: { minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: radius.sm, paddingHorizontal: 13, color: colors.ink, fontSize: 14, backgroundColor: colors.surface },
   fieldInputMultiline: { minHeight: 100, paddingTop: 12, textAlignVertical: "top" },
+  fieldInputTrailing: { paddingRight: 48 },
+  fieldTrailing: { position: "absolute", right: 5 },
   pickerOptions: { gap: 8, paddingRight: 12 },
   pickerOption: { borderRadius: 10, paddingHorizontal: 11, paddingVertical: 9, backgroundColor: colors.soft, borderWidth: 1, borderColor: colors.soft },
   pickerOptionSelected: { backgroundColor: colors.ink, borderColor: colors.ink },
@@ -397,16 +416,16 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
   emptyState: { alignItems: "center", paddingHorizontal: 32, paddingVertical: 48 },
   emptyIcon: { width: 54, height: 54, alignItems: "center", justifyContent: "center", backgroundColor: colors.soft, borderRadius: 17, marginBottom: 15 },
-  emptyTitle: { color: colors.ink, fontFamily: font.display, fontSize: 21, fontWeight: "700", marginBottom: 7, textAlign: "center" },
+  emptyTitle: { color: colors.ink, fontFamily: font.display, fontSize: 17, fontWeight: "800", marginBottom: 7, textAlign: "center" },
   emptyDetail: { color: colors.inkMuted, fontSize: 13, lineHeight: 19, textAlign: "center", maxWidth: 290 },
   emptyAction: { marginTop: 18 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.42)" },
+  modalBackdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.42)" },
   sheet: { maxHeight: "89%", borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden", backgroundColor: colors.surface },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#D3D3D3", alignSelf: "center", marginTop: 10 },
   sheetHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 17, paddingBottom: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, gap: 16 },
   sheetTitleWrap: { flex: 1, gap: 4 },
-  sheetTitle: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: "700" },
+  sheetTitle: { color: colors.ink, fontFamily: font.display, fontSize: 18, fontWeight: "800" },
   sheetSubtitle: { color: colors.inkMuted, fontSize: 12, lineHeight: 17 },
   sheetContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24 },
   sheetFooter: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, paddingHorizontal: 20, paddingVertical: 14, backgroundColor: colors.surface },
