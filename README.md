@@ -74,3 +74,4 @@ pytest
 ## Product boundary
 
 This local build is designed for demonstration and client validation. It uses seeded local data and does not claim production authentication, payment processing, or multi-tenant security. Those are intentionally clear next implementation steps before selling it as a hosted SaaS product.
+# vehicle-flow-control
