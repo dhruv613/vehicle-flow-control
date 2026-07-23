@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Motorwise Garage",
+    "slug": "motorwise-garage",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "scheme": "motorwise",
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "experiments": {
+      "typedRoutes": false
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}

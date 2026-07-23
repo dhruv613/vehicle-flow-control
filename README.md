@@ -1,73 +1,76 @@
-# Welcome to your Lovable project
+# AutoFlow Garage OS
 
-## Project info
+AutoFlow is a cross-platform garage management system for independent workshops and multi-bay service centres. One Expo application runs on Android, iOS, and the web; a FastAPI service provides the local API and seeded demo data.
 
-**URL**: https://lovable.dev/projects/dd3e1c39-c191-4824-9d5d-fbdb16fef53b
+## What is included
 
-## How can I edit this code?
+- Responsive operations dashboard with live daily workload, revenue, and bay metrics
+- Customer and vehicle records with search, filters, and quick actions
+- Service work orders, status changes, technician assignments, and inspection notes
+- Appointment calendar, inventory alerts, estimates/invoices, and business settings
+- Desktop sidebar and mobile bottom navigation with native-feeling modals and transitions
+- A restrained premium palette built from the supplied colours: white surfaces, black primary actions/text, and `#B00020` for error and urgent states
+- A documented FastAPI REST API with validation, CORS, SQLite-backed demo persistence, and interactive OpenAPI docs
 
-There are several ways of editing your application.
+## Project layout
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/dd3e1c39-c191-4824-9d5d-fbdb16fef53b) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```text
+apps/
+  mobile/       Expo + React Native application (Android, iOS, web)
+backend/
+  app/          FastAPI application and local data store
+  tests/        API smoke tests
+docs/           Product and API notes (when applicable)
 ```
 
-**Edit a file directly in GitHub**
+The previous Vite/Express prototype is not the supported application. The canonical commands below run the Expo and FastAPI implementation.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Run locally
 
-**Use GitHub Codespaces**
+### 1. Start the API
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+From a PowerShell terminal at the repository root:
 
-## What technologies are used for this project?
+```powershell
+cd backend
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-This project is built with:
+The API starts at `http://localhost:8000`; its interactive contract is at `http://localhost:8000/docs`.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### 2. Start the app in a browser
 
-## How can I deploy this project?
+Open a second terminal:
 
-Simply open [Lovable](https://lovable.dev/projects/dd3e1c39-c191-4824-9d5d-fbdb16fef53b) and click on Share -> Publish.
+```powershell
+cd apps\mobile
+npm install
+npm run web
+```
 
-## Can I connect a custom domain to my Lovable project?
+### 3. Open it with Expo Go
 
-Yes, you can!
+On your computer and phone, use the same Wi-Fi network. Find the computer's LAN address (for example, `192.168.1.20`) and set it before starting Expo:
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```powershell
+cd apps\mobile
+$env:EXPO_PUBLIC_API_URL = "http://192.168.1.20:8000"
+npm run start
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Scan the QR code with Expo Go. `localhost` works for the browser on the development computer, but a physical phone must use the computer's LAN address. The app retains seeded demo data when the API is not reachable, so the interface remains usable while setting up a device.
+
+## Local API checks
+
+With the virtual environment active in `backend/`:
+
+```powershell
+pytest
+```
+
+## Product boundary
+
+This local build is designed for demonstration and client validation. It uses seeded local data and does not claim production authentication, payment processing, or multi-tenant security. Those are intentionally clear next implementation steps before selling it as a hosted SaaS product.
