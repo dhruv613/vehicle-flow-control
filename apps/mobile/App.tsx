@@ -12,7 +12,7 @@ import {
 
 import { Icon, IconButton, NotificationDot, PrimaryButton, Sheet, StatusBadge, Toast } from "./src/components/garageUi";
 import { AuthProvider, useAuth } from "./src/hooks/useAuth";
-import { GarageProvider, useGarage } from "./src/hooks/useGarage";
+import { GarageProvider, todayISO, useGarage } from "./src/hooks/useGarage";
 import { BillingScreen } from "./src/screens/BillingScreen";
 import {
   CalendarScreen,
@@ -122,7 +122,7 @@ function GarageApp() {
           <Animated.View style={[styles.contentViewport, { opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
             <View style={[styles.contentInner, isWide && styles.contentInnerWide]}>{content}</View>
           </Animated.View>
-          {!isWide ? <MobileNav active={screen} onNavigate={navigate} lowStock={lowStock} /> : null}
+          {!isWide ? <MobileNav active={screen} onNavigate={navigate} urgentJobs={urgentJobs} /> : null}
         </View>
       </View>
       <QuickMenu visible={quickMenu} onClose={() => setQuickMenu(false)} onNavigate={(target) => { setQuickMenu(false); navigate(target); }} />
@@ -162,8 +162,8 @@ function Header({ title, isWide, alertCount, onOpenNotifications, onOpenProfile,
   </View>;
 }
 
-function MobileNav({ active, onNavigate, lowStock }: { active: ScreenName; onNavigate: (screen: ScreenName) => void; lowStock: number }) {
-  return <View style={styles.mobileNav}>{mobileTabs.map((key) => { const item = navigation.find((entry) => entry.key === key)!; const selected = active === key; const badge = key === "workorders" ? lowStock : 0; return <Pressable key={key} onPress={() => onNavigate(key)} style={({ pressed }) => [styles.mobileTab, pressed && styles.pressed]}><View style={styles.mobileTabIcon}><Icon name={item.icon} size={20} color={selected ? colors.ink : colors.inkFaint} />{badge ? <View style={styles.mobileBadge}><Text style={styles.mobileBadgeText}>{badge}</Text></View> : null}</View><Text style={[styles.mobileTabText, selected && styles.mobileTabTextActive]}>{item.label === "Work orders" ? "Jobs" : item.label}</Text>{selected ? <View style={styles.mobileTabIndicator} /> : null}</Pressable>; })}</View>;
+function MobileNav({ active, onNavigate, urgentJobs }: { active: ScreenName; onNavigate: (screen: ScreenName) => void; urgentJobs: number }) {
+  return <View style={styles.mobileNav}>{mobileTabs.map((key) => { const item = navigation.find((entry) => entry.key === key)!; const selected = active === key; const badge = key === "workorders" ? urgentJobs : 0; return <Pressable key={key} onPress={() => onNavigate(key)} style={({ pressed }) => [styles.mobileTab, pressed && styles.pressed]}><View style={styles.mobileTabIcon}><Icon name={item.icon} size={20} color={selected ? colors.ink : colors.inkFaint} />{badge ? <View style={styles.mobileBadge}><Text style={styles.mobileBadgeText}>{badge}</Text></View> : null}</View><Text style={[styles.mobileTabText, selected && styles.mobileTabTextActive]}>{item.label === "Work orders" ? "Jobs" : item.label}</Text>{selected ? <View style={styles.mobileTabIndicator} /> : null}</Pressable>; })}</View>;
 }
 
 function QuickMenu({ visible, onClose, onNavigate }: { visible: boolean; onClose: () => void; onNavigate: (screen: ScreenName) => void }) {
@@ -190,7 +190,7 @@ function ProfileMenu({ visible, onClose, onNavigate }: { visible: boolean; onClo
 
 function NotificationsSheet({ visible, onClose, onNavigate }: { visible: boolean; onClose: () => void; onNavigate: (screen: ScreenName) => void }) {
   const { inventory, workOrders, events, vehicles } = useGarage();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const lowStock = inventory.filter((item) => item.quantity <= item.reorderAt);
   const urgent = workOrders.filter((order) => order.priority === "Urgent" && order.status !== "Collected");
   const readyVehicles = vehicles.filter((vehicle) => vehicle.status === "Ready");

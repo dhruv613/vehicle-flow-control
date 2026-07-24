@@ -134,6 +134,19 @@ export async function pushCustomer(customer: Customer): Promise<string | null> {
   return row?.id ?? null;
 }
 
+export async function pushCustomerUpdate(customerId: string, changes: Partial<Pick<Customer, "name" | "phone" | "email" | "note">>): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (changes.name !== undefined) body.name = changes.name;
+  if (changes.phone !== undefined) body.phone = changes.phone;
+  if (changes.email !== undefined) body.email = changes.email || null;
+  if (changes.note !== undefined) body.notes = changes.note ?? null;
+  await request(`/api/customers/${customerId}`, { method: "PATCH", body: JSON.stringify(body) });
+}
+
+export async function pushCustomerDelete(customerId: string): Promise<void> {
+  await request(`/api/customers/${customerId}`, { method: "DELETE" });
+}
+
 export async function pushVehicle(vehicle: Vehicle): Promise<string | null> {
   const row = await request<{ id: string }>("/api/vehicles", {
     method: "POST",
@@ -153,6 +166,22 @@ export async function pushVehicle(vehicle: Vehicle): Promise<string | null> {
 
 export async function pushVehicleStatus(vehicleId: string, status: VehicleStatus): Promise<void> {
   await request(`/api/vehicles/${vehicleId}`, { method: "PATCH", body: JSON.stringify({ status: VEHICLE_STATUS_TO_API[status] }) });
+}
+
+export async function pushVehicleUpdate(vehicleId: string, changes: Partial<Pick<Vehicle, "make" | "model" | "year" | "plate" | "colour" | "odometer" | "customerId">>): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (changes.make !== undefined) body.make = changes.make;
+  if (changes.model !== undefined) body.model = changes.model;
+  if (changes.year !== undefined) body.year = changes.year;
+  if (changes.plate !== undefined) body.registrationNumber = changes.plate;
+  if (changes.colour !== undefined) body.color = changes.colour;
+  if (changes.odometer !== undefined) body.odometer = changes.odometer;
+  if (changes.customerId !== undefined) body.customerId = changes.customerId;
+  await request(`/api/vehicles/${vehicleId}`, { method: "PATCH", body: JSON.stringify(body) });
+}
+
+export async function pushVehicleDelete(vehicleId: string): Promise<void> {
+  await request(`/api/vehicles/${vehicleId}`, { method: "DELETE" });
 }
 
 export async function pushWorkOrder(order: WorkOrder): Promise<{ id: string; number: string } | null> {

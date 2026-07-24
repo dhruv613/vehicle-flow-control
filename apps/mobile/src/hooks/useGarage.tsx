@@ -5,6 +5,8 @@ import {
   loadRemoteWorkspace,
   pushAppointment,
   pushCustomer,
+  pushCustomerDelete,
+  pushCustomerUpdate,
   pushDemoReset,
   pushInventoryItem,
   pushInvoice,
@@ -12,7 +14,9 @@ import {
   pushSettings,
   pushStockAdjustment,
   pushVehicle,
+  pushVehicleDelete,
   pushVehicleStatus,
+  pushVehicleUpdate,
   pushWorkOrder,
   pushWorkOrderStatus,
   type ConnectionState,
@@ -35,6 +39,8 @@ import type {
 
 type NewVehicle = Omit<Vehicle, "id" | "lastService" | "nextService" | "imageTone"> & Partial<Pick<Vehicle, "lastService" | "nextService" | "imageTone">>;
 type NewCustomer = Omit<Customer, "id" | "initials" | "joinedAt" | "totalVisits" | "lifetimeValue"> & Partial<Pick<Customer, "initials" | "joinedAt" | "totalVisits" | "lifetimeValue">>;
+export type CustomerChanges = Partial<Pick<Customer, "name" | "phone" | "email" | "note">>;
+export type VehicleChanges = Partial<Pick<Vehicle, "make" | "model" | "year" | "plate" | "colour" | "odometer" | "customerId">>;
 type NewWorkOrder = Omit<WorkOrder, "id" | "number" | "startedAt" | "checklist"> & Partial<Pick<WorkOrder, "startedAt" | "checklist">>;
 type NewEvent = Omit<CalendarEvent, "id">;
 export interface NewInvoice {
@@ -54,6 +60,10 @@ interface GarageContextValue extends GarageState {
   addVehicle: (vehicle: NewVehicle) => string;
   addCustomer: (customer: NewCustomer) => string;
   addWorkOrder: (order: NewWorkOrder) => string;
+  updateCustomer: (customerId: string, changes: CustomerChanges) => void;
+  deleteCustomer: (customerId: string) => string | null;
+  updateVehicle: (vehicleId: string, changes: VehicleChanges) => void;
+  deleteVehicle: (vehicleId: string) => string | null;
   updateVehicleStatus: (vehicleId: string, status: VehicleStatus) => void;
   advanceWorkOrder: (workOrderId: string) => void;
   toggleChecklistItem: (workOrderId: string, index: number) => void;
@@ -133,6 +143,10 @@ export function GarageProvider({ children }: PropsWithChildren) {
   const [toast, setToast] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnectionState>("local");
   const hydratedRef = useRef(false);
+  // Always-current snapshot so delete guards can check dependents without
+  // depending on `garage` (which would churn the memoized action identities).
+  const garageRef = useRef(garage);
+  garageRef.current = garage;
 
   // Hydrate once signed in: prefer the live API, then the device's stored
   // workspace, then the bundled seed.
@@ -243,6 +257,61 @@ export function GarageProvider({ children }: PropsWithChildren) {
     return id;
   }, [announce, isConnected]);
 
+  const updateCustomer = useCallback((customerId: string, changes: CustomerChanges) => {
+    setGarage((current) => ({
+      ...current,
+      customers: current.customers.map((customer) => {
+        if (customer.id !== customerId) return customer;
+        const next = { ...customer, ...changes };
+        if (changes.name) {
+          next.initials = changes.name.trim().split(/\s+/).map((piece) => piece[0]).join("").slice(0, 2).toUpperCase();
+        }
+        return next;
+      }),
+    }));
+    announce("Customer updated");
+    if (isConnected) void pushCustomerUpdate(customerId, changes);
+  }, [announce, isConnected]);
+
+  const deleteCustomer = useCallback((customerId: string): string | null => {
+    if (garageRef.current.vehicles.some((vehicle) => vehicle.customerId === customerId)) {
+      return "Reassign or remove this customer's vehicles before deleting the profile.";
+    }
+    setGarage((current) => ({
+      ...current,
+      customers: current.customers.filter((customer) => customer.id !== customerId),
+      workOrders: current.workOrders.filter((order) => order.customerId !== customerId),
+      events: current.events.filter((event) => event.customerId !== customerId),
+      invoices: current.invoices.filter((invoice) => invoice.customerId !== customerId),
+    }));
+    announce("Customer deleted");
+    if (isConnected) void pushCustomerDelete(customerId);
+    return null;
+  }, [announce, isConnected]);
+
+  const updateVehicle = useCallback((vehicleId: string, changes: VehicleChanges) => {
+    setGarage((current) => ({
+      ...current,
+      vehicles: current.vehicles.map((vehicle) => vehicle.id === vehicleId ? { ...vehicle, ...changes } : vehicle),
+    }));
+    announce("Vehicle updated");
+    if (isConnected) void pushVehicleUpdate(vehicleId, changes);
+  }, [announce, isConnected]);
+
+  const deleteVehicle = useCallback((vehicleId: string): string | null => {
+    if (garageRef.current.workOrders.some((order) => order.vehicleId === vehicleId)) {
+      return "This vehicle has work orders. Delete or reassign them first.";
+    }
+    setGarage((current) => ({
+      ...current,
+      vehicles: current.vehicles.filter((vehicle) => vehicle.id !== vehicleId),
+      events: current.events.filter((event) => event.vehicleId !== vehicleId),
+    }));
+    announce("Vehicle deleted");
+    if (isConnected) void pushVehicleDelete(vehicleId);
+    return null;
+  }, [announce, isConnected]);
+
   const updateVehicleStatus = useCallback((vehicleId: string, status: VehicleStatus) => {
     setGarage((current) => ({ ...current, vehicles: current.vehicles.map((vehicle) => vehicle.id === vehicleId ? { ...vehicle, status } : vehicle) }));
     announce(`Vehicle moved to ${status.toLowerCase()}`);
@@ -351,11 +420,12 @@ export function GarageProvider({ children }: PropsWithChildren) {
   }, [announce, isConnected]);
 
   const recordPayment = useCallback((invoiceId: string, amount: number, method: string) => {
+    let applied = 0;
     setGarage((current) => ({
       ...current,
       invoices: current.invoices.map((invoice) => {
         if (invoice.id !== invoiceId) return invoice;
-        const applied = Math.min(amount, invoice.balanceDue);
+        applied = Math.min(amount, invoice.balanceDue);
         if (applied <= 0) return invoice;
         const amountPaid = Math.round((invoice.amountPaid + applied) * 100) / 100;
         const balanceDue = Math.max(Math.round((invoice.total - amountPaid) * 100) / 100, 0);
@@ -368,8 +438,11 @@ export function GarageProvider({ children }: PropsWithChildren) {
         };
       }),
     }));
+    if (applied <= 0) return;
     announce("Payment recorded");
-    if (isConnected) void pushPayment(invoiceId, amount, method);
+    // Send the capped amount the client actually applied; the server rejects
+    // any payment above the outstanding balance with a 422.
+    if (isConnected) void pushPayment(invoiceId, applied, method);
   }, [announce, isConnected]);
 
   const updateSettings = useCallback((changes: Partial<GarageSettings>) => {
@@ -401,6 +474,10 @@ export function GarageProvider({ children }: PropsWithChildren) {
     addVehicle,
     addCustomer,
     addWorkOrder,
+    updateCustomer,
+    deleteCustomer,
+    updateVehicle,
+    deleteVehicle,
     updateVehicleStatus,
     advanceWorkOrder,
     toggleChecklistItem,
@@ -411,7 +488,7 @@ export function GarageProvider({ children }: PropsWithChildren) {
     recordPayment,
     updateSettings,
     resetDemo,
-  }), [garage, connection, toast, addVehicle, addCustomer, addWorkOrder, updateVehicleStatus, advanceWorkOrder, toggleChecklistItem, adjustInventory, addInventoryItem, addEvent, addInvoice, recordPayment, updateSettings, resetDemo]);
+  }), [garage, connection, toast, addVehicle, addCustomer, addWorkOrder, updateCustomer, deleteCustomer, updateVehicle, deleteVehicle, updateVehicleStatus, advanceWorkOrder, toggleChecklistItem, adjustInventory, addInventoryItem, addEvent, addInvoice, recordPayment, updateSettings, resetDemo]);
 
   return <GarageContext.Provider value={value}>{children}</GarageContext.Provider>;
 }
@@ -429,3 +506,12 @@ export const formatMoney = (amount: number, currency: GarageSettings["currency"]
 }).format(amount);
 
 export const formatDate = (value: string) => dateLabel.format(new Date(value));
+
+/** Local calendar day as YYYY-MM-DD. Avoids the UTC skew of toISOString(). */
+export const toLocalISO = (date: Date) => {
+  const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return shifted.toISOString().slice(0, 10);
+};
+
+/** Today in the device's local timezone, not UTC. */
+export const todayISO = () => toLocalISO(new Date());

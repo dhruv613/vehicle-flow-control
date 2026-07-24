@@ -10,8 +10,8 @@
       "currency": "INR",
       "tax_rate": 18.0,
       "opening_hours": "Mon–Sat, 8:30 AM–7:00 PM",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     }
   ],
   "customers": [
@@ -22,8 +22,8 @@
       "email": "aarav.sharma@example.com",
       "address": "Indiranagar, Bengaluru",
       "notes": "Prefers WhatsApp updates.",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "cus_002",
@@ -32,8 +32,8 @@
       "email": "riya.kapoor@example.com",
       "address": "Koregaon Park, Pune",
       "notes": "Fleet account contact.",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "cus_003",
@@ -42,8 +42,8 @@
       "email": "vikram.mehta@example.com",
       "address": "Gurugram, Haryana",
       "notes": null,
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     }
   ],
   "vehicles": [
@@ -59,11 +59,11 @@
       "fuel_type": "Petrol",
       "transmission": "CVT",
       "odometer": 28412,
-      "status": "collected",
+      "status": "in_service",
       "image_url": null,
       "notes": "Use 0W-20 fully synthetic oil.",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T15:46:04+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "veh_002",
@@ -77,11 +77,11 @@
       "fuel_type": "Diesel",
       "transmission": "Automatic",
       "odometer": 11250,
-      "status": "in_service",
+      "status": "checked_in",
       "image_url": null,
       "notes": null,
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T15:41:45+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "veh_003",
@@ -98,8 +98,8 @@
       "status": "ready",
       "image_url": null,
       "notes": "Do not wash charging port with high pressure.",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     }
   ],
   "jobs": [
@@ -110,18 +110,18 @@
       "customer_id": "cus_001",
       "service_type": "Periodic maintenance",
       "description": "30,000 km service, oil and cabin filter replacement.",
-      "status": "ready",
+      "status": "in_progress",
       "priority": "normal",
       "technician": "Rahul Verma",
-      "scheduled_at": "2026-07-23T09:00:00+00:00",
-      "due_at": "2026-07-24T17:00:00+00:00",
+      "scheduled_at": "2026-07-24T09:00:00+00:00",
+      "due_at": "2026-07-25T17:00:00+00:00",
       "odometer": 28412,
       "estimated_cost": 6800.0,
       "labor_cost": 1200.0,
       "parts_cost": 4250.0,
       "notes": "Customer approved estimate by phone.",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T15:41:35+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "job_002",
@@ -130,18 +130,18 @@
       "customer_id": "cus_002",
       "service_type": "Brake inspection",
       "description": "Inspect front brake noise and rotor wear.",
-      "status": "in_progress",
+      "status": "scheduled",
       "priority": "high",
       "technician": "Neha Singh",
-      "scheduled_at": "2026-07-23T13:00:00+00:00",
-      "due_at": "2026-07-23T18:00:00+00:00",
+      "scheduled_at": "2026-07-24T13:00:00+00:00",
+      "due_at": "2026-07-24T18:00:00+00:00",
       "odometer": 11250,
       "estimated_cost": 3500.0,
       "labor_cost": 0.0,
       "parts_cost": 0.0,
       "notes": null,
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T15:41:45+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "job_003",
@@ -153,15 +153,15 @@
       "status": "completed",
       "priority": "normal",
       "technician": "Ankit Rao",
-      "scheduled_at": "2026-07-21T10:00:00+00:00",
-      "due_at": "2026-07-22T16:00:00+00:00",
+      "scheduled_at": "2026-07-22T10:00:00+00:00",
+      "due_at": "2026-07-23T16:00:00+00:00",
       "odometer": 8640,
       "estimated_cost": 1800.0,
       "labor_cost": 1200.0,
       "parts_cost": 0.0,
       "notes": "Battery health: 96%.",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     }
   ],
   "appointments": [
@@ -170,39 +170,39 @@
       "customer_id": "cus_001",
       "vehicle_id": "veh_001",
       "service_type": "Service check-in",
-      "starts_at": "2026-07-23T09:00:00+00:00",
-      "ends_at": "2026-07-23T09:00:00+00:00",
+      "starts_at": "2026-07-24T09:00:00+00:00",
+      "ends_at": "2026-07-24T09:00:00+00:00",
       "status": "checked_in",
       "advisor": "Ishita Bose",
       "notes": "Keys left at reception.",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "apt_002",
       "customer_id": "cus_002",
       "vehicle_id": "veh_002",
       "service_type": "Brake inspection",
-      "starts_at": "2026-07-23T13:00:00+00:00",
-      "ends_at": "2026-07-23T14:00:00+00:00",
+      "starts_at": "2026-07-24T13:00:00+00:00",
+      "ends_at": "2026-07-24T14:00:00+00:00",
       "status": "confirmed",
       "advisor": "Ishita Bose",
       "notes": null,
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "apt_003",
       "customer_id": "cus_003",
       "vehicle_id": "veh_003",
       "service_type": "EV annual inspection",
-      "starts_at": "2026-07-25T11:00:00+00:00",
-      "ends_at": "2026-07-25T12:00:00+00:00",
+      "starts_at": "2026-07-26T11:00:00+00:00",
+      "ends_at": "2026-07-26T12:00:00+00:00",
       "status": "confirmed",
       "advisor": "Sameer Khan",
       "notes": "Customer will wait in lounge.",
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     }
   ],
   "inventory": [
@@ -218,254 +218,38 @@
       "location": "Aisle A-02",
       "notes": null,
       "stock_movements": [],
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "part_002",
       "sku": "FILTER-CAB-109",
       "name": "Cabin Air Filter - Honda City",
       "category": "Filters",
-      "quantity_on_hand": 7,
+      "quantity_on_hand": 3,
       "reorder_level": 5,
       "unit_price": 780.0,
       "supplier": "Honda Parts Hub",
       "location": "Aisle B-05",
       "notes": "Reorder this week.",
-      "stock_movements": [
-        {
-          "id": "mov_1",
-          "quantity_delta": 4,
-          "reason": "Supplier delivery",
-          "at": "2026-07-23T13:52:01+00:00"
-        }
-      ],
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "stock_movements": [],
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "part_003",
       "sku": "BRAKE-PAD-HC-22",
       "name": "Front Brake Pad Set - Hyundai Creta",
       "category": "Brakes",
-      "quantity_on_hand": 3,
+      "quantity_on_hand": 2,
       "reorder_level": 2,
       "unit_price": 3950.0,
       "supplier": "Mobility Components Ltd.",
       "location": "Aisle C-01",
       "notes": null,
-      "stock_movements": [
-        {
-          "id": "mov_1",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:41:53+00:00"
-        }
-      ],
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T15:41:53+00:00"
-    },
-    {
-      "id": "part_5dc81a1dd1",
-      "sku": "GJ02 EB 2908",
-      "name": "bumper",
-      "category": "drom",
-      "quantity_on_hand": 32,
-      "reorder_level": 33,
-      "unit_price": 399399.0,
-      "supplier": "suzuki",
-      "location": null,
-      "notes": null,
-      "stock_movements": [
-        {
-          "id": "mov_1",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:08+00:00"
-        },
-        {
-          "id": "mov_2",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:10+00:00"
-        },
-        {
-          "id": "mov_3",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:11+00:00"
-        },
-        {
-          "id": "mov_4",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:11+00:00"
-        },
-        {
-          "id": "mov_5",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:23+00:00"
-        },
-        {
-          "id": "mov_6",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:23+00:00"
-        },
-        {
-          "id": "mov_7",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:23+00:00"
-        },
-        {
-          "id": "mov_8",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:23+00:00"
-        },
-        {
-          "id": "mov_9",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:23+00:00"
-        },
-        {
-          "id": "mov_10",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:23+00:00"
-        },
-        {
-          "id": "mov_11",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:23+00:00"
-        },
-        {
-          "id": "mov_12",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:23+00:00"
-        },
-        {
-          "id": "mov_13",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:24+00:00"
-        },
-        {
-          "id": "mov_14",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:24+00:00"
-        },
-        {
-          "id": "mov_15",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:24+00:00"
-        },
-        {
-          "id": "mov_16",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:24+00:00"
-        },
-        {
-          "id": "mov_17",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:24+00:00"
-        },
-        {
-          "id": "mov_18",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:24+00:00"
-        },
-        {
-          "id": "mov_19",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:24+00:00"
-        },
-        {
-          "id": "mov_20",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:24+00:00"
-        },
-        {
-          "id": "mov_21",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:25+00:00"
-        },
-        {
-          "id": "mov_22",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:25+00:00"
-        },
-        {
-          "id": "mov_23",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:26+00:00"
-        },
-        {
-          "id": "mov_24",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:26+00:00"
-        },
-        {
-          "id": "mov_25",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:26+00:00"
-        },
-        {
-          "id": "mov_26",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:26+00:00"
-        },
-        {
-          "id": "mov_27",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:27+00:00"
-        },
-        {
-          "id": "mov_28",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:27+00:00"
-        },
-        {
-          "id": "mov_29",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:27+00:00"
-        },
-        {
-          "id": "mov_30",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:27+00:00"
-        },
-        {
-          "id": "mov_31",
-          "quantity_delta": 1,
-          "reason": "Stock received at front desk",
-          "at": "2026-07-23T15:43:28+00:00"
-        }
-      ],
-      "created_at": "2026-07-23T15:42:56+00:00",
-      "updated_at": "2026-07-23T15:43:28+00:00"
+      "stock_movements": [],
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     }
   ],
   "invoices": [
@@ -492,8 +276,8 @@
       "total": 1416.0,
       "amount_paid": 1416.0,
       "balance_due": 0.0,
-      "due_at": "2026-07-23T17:00:00+00:00",
-      "issued_at": "2026-07-22T16:00:00+00:00",
+      "due_at": "2026-07-24T17:00:00+00:00",
+      "issued_at": "2026-07-23T16:00:00+00:00",
       "notes": "Paid by UPI.",
       "payments": [
         {
@@ -501,11 +285,11 @@
           "amount": 1416.0,
           "method": "upi",
           "reference": "UPI-EXAMPLE-001",
-          "paid_at": "2026-07-22T16:00:00+00:00"
+          "paid_at": "2026-07-23T16:00:00+00:00"
         }
       ],
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "inv_002",
@@ -530,12 +314,57 @@
       "total": 8024.0,
       "amount_paid": 0.0,
       "balance_due": 8024.0,
-      "due_at": "2026-07-30T17:00:00+00:00",
-      "issued_at": "2026-07-23T10:00:00+00:00",
+      "due_at": "2026-07-31T17:00:00+00:00",
+      "issued_at": "2026-07-24T10:00:00+00:00",
       "notes": "Estimate pending customer payment.",
       "payments": [],
-      "created_at": "2026-07-23T13:52:01+00:00",
-      "updated_at": "2026-07-23T13:52:01+00:00"
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
+    },
+    {
+      "id": "inv_effde27f56",
+      "customer_id": "cus_001",
+      "vehicle_id": null,
+      "job_id": null,
+      "line_items": [
+        {
+          "description": "Synthetic oil change",
+          "quantity": 1.0,
+          "unit_price": 2450.0,
+          "inventory_id": null,
+          "total": 2450.0
+        },
+        {
+          "description": "Labour",
+          "quantity": 2.0,
+          "unit_price": 600.0,
+          "inventory_id": null,
+          "total": 1200.0
+        }
+      ],
+      "status": "paid",
+      "tax_rate": 18.0,
+      "discount": 100.0,
+      "amount_paid": 4189.0,
+      "due_at": null,
+      "notes": null,
+      "invoice_number": "INV-2003",
+      "issued_at": "2026-07-24T04:52:28+00:00",
+      "payments": [
+        {
+          "id": "pay_1",
+          "amount": 4189.0,
+          "method": "upi",
+          "reference": null,
+          "paid_at": "2026-07-24T04:52:28+00:00"
+        }
+      ],
+      "subtotal": 3650.0,
+      "tax_amount": 639.0,
+      "total": 4189.0,
+      "balance_due": 0.0,
+      "created_at": "2026-07-24T04:52:28+00:00",
+      "updated_at": "2026-07-24T04:52:28+00:00"
     }
   ],
   "users": [
@@ -544,18 +373,18 @@
       "username": "admin",
       "name": "Alex Mercer",
       "role": "Garage owner",
-      "password_hash": "pbkdf2_sha256$240000$41de1fd44d5a6d20f4b78ec71b6be00c$97c23a4ec7e05d7042789cfc6c3184708c6320b8ab2fa1e0fae4aca508f48743",
-      "created_at": "2026-07-23T15:39:10+00:00",
-      "updated_at": "2026-07-23T15:39:10+00:00"
+      "password_hash": "pbkdf2_sha256$240000$2c1b056b4583864723b7ca9a0c4e4710$8b52a7509e52d1d36b08b3e6def5d4b2f3b2752b7b7adab8ef0ea97d38f569c3",
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     },
     {
       "id": "usr_002",
       "username": "mira",
       "name": "Mira Patel",
       "role": "Service advisor",
-      "password_hash": "pbkdf2_sha256$240000$b6d1d7303852aaa7d61265e775cbda5d$a32f80bbd1a725679fe481876cff448b26d0e7b6b8a384ba7cdfede36e32d62b",
-      "created_at": "2026-07-23T15:39:10+00:00",
-      "updated_at": "2026-07-23T15:39:10+00:00"
+      "password_hash": "pbkdf2_sha256$240000$5e938f747defe526502824de38c349ae$d51c914f9bd0baa5282e6da281b5ab4eb5034ddabe04404a779a518cd6659151",
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
     }
   ],
   "sessions": [
@@ -598,6 +427,38 @@
       "expires_at": "2026-07-30T16:03:50.654868+00:00",
       "created_at": "2026-07-23T16:03:50+00:00",
       "updated_at": "2026-07-23T16:03:50+00:00"
+    },
+    {
+      "id": "ses_b7bad94997",
+      "token": "5qhZKEmrZDhvxhAQhjBBCGGgXm-JmBB6EszgRDl1qXE",
+      "user_id": "usr_001",
+      "expires_at": "2026-07-31T04:52:26.877408+00:00",
+      "created_at": "2026-07-24T04:52:26+00:00",
+      "updated_at": "2026-07-24T04:52:26+00:00"
+    },
+    {
+      "id": "ses_824b272320",
+      "token": "TXgJcAai71j-u9FDqIdYE9mvI5xIq8L-6C5dZChvw6E",
+      "user_id": "usr_001",
+      "expires_at": "2026-07-31T04:52:27.514270+00:00",
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
+    },
+    {
+      "id": "ses_e74312ad31",
+      "token": "pI_7jnPvro3dAm5J3Y5MVp_3jrmCuGcuNUnEy3gwWyo",
+      "user_id": "usr_001",
+      "expires_at": "2026-07-31T04:52:27.771203+00:00",
+      "created_at": "2026-07-24T04:52:27+00:00",
+      "updated_at": "2026-07-24T04:52:27+00:00"
+    },
+    {
+      "id": "ses_e56d4c3213",
+      "token": "e6SNdTa-10lDPwc-behjXdg9ILIUDJz9eIauIXGoHEw",
+      "user_id": "usr_001",
+      "expires_at": "2026-07-31T04:52:28.019649+00:00",
+      "created_at": "2026-07-24T04:52:28+00:00",
+      "updated_at": "2026-07-24T04:52:28+00:00"
     }
   ]
 }

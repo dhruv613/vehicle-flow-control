@@ -30,7 +30,7 @@ import {
   VehicleArt,
 } from "../components/garageUi";
 import { useAuth } from "../hooks/useAuth";
-import { formatMoney, useGarage } from "../hooks/useGarage";
+import { formatMoney, todayISO, toLocalISO, useGarage } from "../hooks/useGarage";
 import type { CalendarEvent, Customer, InventoryItem, ScreenName, Vehicle, VehicleStatus, WorkOrder } from "../data/types";
 import { colors, font, radius, spacing } from "../theme/tokens";
 
@@ -102,7 +102,7 @@ export function DashboardScreen({ navigate, isWide }: ScreenProps) {
   const waiting = workOrders.filter((order) => order.status === "Waiting").length;
   const lowStock = inventory.filter((item) => item.quantity <= item.reorderAt);
   const grossValue = activeOrders.reduce((total, order) => total + order.estimate, 0);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const todayEvents = events.filter((event) => event.date === today).sort((a, b) => a.time.localeCompare(b.time));
   const displayEvents = todayEvents.length ? todayEvents : events.slice(0, 4);
   const greetingName = settings.ownerName.split(" ")[0] || "there";
@@ -119,7 +119,7 @@ export function DashboardScreen({ navigate, isWide }: ScreenProps) {
 
       <View style={[styles.metricGrid, isWide && styles.metricGridWide]}>
         <MetricCard label="Active jobs" value={String(activeOrders.length)} detail={`${waiting} waiting`} icon="construct-outline" onPress={() => navigate("workorders")} />
-        <MetricCard label="Today" value={String(todayEvents.length || displayEvents.length)} detail="Appointments" icon="calendar-outline" onPress={() => navigate("calendar")} />
+        <MetricCard label="Today" value={String(todayEvents.length)} detail="Appointments" icon="calendar-outline" onPress={() => navigate("calendar")} />
         <MetricCard label="Open value" value={formatMoney(grossValue, settings.currency)} detail="Active work" icon="wallet-outline" inverse onPress={() => navigate("billing")} />
         <MetricCard label="Low stock" value={String(lowStock.length)} detail={lowStock.length ? "Needs reordering" : "All healthy"} icon="cube-outline" onPress={() => navigate("inventory")} />
       </View>
@@ -202,7 +202,7 @@ export function DashboardScreen({ navigate, isWide }: ScreenProps) {
 }
 
 export function VehiclesScreen({ navigate }: ScreenProps) {
-  const { vehicles, customers, workOrders, updateVehicleStatus, addVehicle } = useGarage();
+  const { vehicles, customers, workOrders, updateVehicleStatus, addVehicle, updateVehicle, deleteVehicle } = useGarage();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | VehicleStatus>("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -211,6 +211,12 @@ export function VehiclesScreen({ navigate }: ScreenProps) {
   const [draft, setDraft] = useState(() => makeVehicleDraft(customers[0]?.id ?? ""));
   // Derive from live state so status taps inside the sheet update instantly.
   const selected = vehicles.find((vehicle) => vehicle.id === selectedId) ?? null;
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState(() => makeVehicleDraft(""));
+  const [editError, setEditError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const deletingVehicle = vehicles.find((vehicle) => vehicle.id === deletingId) ?? null;
 
   const visibleVehicles = useMemo(() => vehicles.filter((vehicle) => {
     const matchesFilter = filter === "All" || vehicle.status === filter;
@@ -241,6 +247,36 @@ export function VehiclesScreen({ navigate }: ScreenProps) {
     });
     setAdding(false);
   };
+  const openEdit = (vehicle: Vehicle) => {
+    setEditDraft({ customerId: vehicle.customerId, make: vehicle.make, model: vehicle.model, year: String(vehicle.year), plate: vehicle.plate, colour: vehicle.colour, odometer: String(vehicle.odometer) });
+    setEditError("");
+    setSelectedId(null);
+    setEditingId(vehicle.id);
+  };
+  const saveEdit = () => {
+    if (!editingId) return;
+    if (!editDraft.customerId || !editDraft.make.trim() || !editDraft.model.trim() || !editDraft.plate.trim()) {
+      setEditError("Choose an owner and complete the make, model and registration.");
+      return;
+    }
+    updateVehicle(editingId, {
+      customerId: editDraft.customerId,
+      make: editDraft.make.trim(),
+      model: editDraft.model.trim(),
+      year: Number(editDraft.year) || new Date().getFullYear(),
+      plate: editDraft.plate.trim().toUpperCase(),
+      colour: editDraft.colour.trim() || "Not recorded",
+      odometer: Number(editDraft.odometer) || 0,
+    });
+    setEditingId(null);
+  };
+  const openDelete = (vehicle: Vehicle) => { setDeleteError(""); setSelectedId(null); setDeletingId(vehicle.id); };
+  const confirmRemove = () => {
+    if (!deletingId) return;
+    const failure = deleteVehicle(deletingId);
+    if (failure) { setDeleteError(failure); return; }
+    setDeletingId(null);
+  };
 
   return (
     <PageScroll>
@@ -268,8 +304,8 @@ export function VehiclesScreen({ navigate }: ScreenProps) {
       </View>
       {!visibleVehicles.length ? <EmptyState icon="car-outline" title="No vehicles found" detail="Try a different filter or add a vehicle to the register." action="Add vehicle" onAction={openAdd} /> : null}
 
-      <Sheet visible={Boolean(selected)} onClose={() => setSelectedId(null)} title={selected ? `${selected.make} ${selected.model}` : "Vehicle"} subtitle={selected ? `${selected.plate} · ${selected.year} · ${selected.colour}` : undefined} footer={selected ? <PrimaryButton label="Open work orders" icon="construct-outline" onPress={() => { setSelectedId(null); navigate("workorders"); }} /> : undefined}>
-        {selected ? <VehicleDetail vehicle={selected} customers={customers} workOrders={workOrders} onStatus={(status) => updateVehicleStatus(selected.id, status)} /> : null}
+      <Sheet visible={Boolean(selected)} onClose={() => setSelectedId(null)} title={selected ? `${selected.make} ${selected.model}` : "Vehicle"} subtitle={selected ? `${selected.plate} · ${selected.year} · ${selected.colour}` : undefined} footer={selected ? <View style={styles.detailActions}><PrimaryButton label="Edit" icon="create-outline" variant="light" onPress={() => openEdit(selected)} style={styles.detailActionFlex} /><PrimaryButton label="Work orders" icon="construct-outline" onPress={() => { setSelectedId(null); navigate("workorders"); }} style={styles.detailActionFlex} /></View> : undefined}>
+        {selected ? <VehicleDetail vehicle={selected} customers={customers} workOrders={workOrders} onStatus={(status) => updateVehicleStatus(selected.id, status)} onDelete={() => openDelete(selected)} /> : null}
       </Sheet>
       <Sheet visible={adding} onClose={() => setAdding(false)} title="Add vehicle" subtitle="Create a clean record before the car reaches a bay." footer={<PrimaryButton label="Save vehicle" icon="checkmark" onPress={saveVehicle} />}>
         {formError ? <FormError text={formError} /> : null}
@@ -279,11 +315,23 @@ export function VehiclesScreen({ navigate }: ScreenProps) {
         <View style={styles.formTwoCol}><View style={styles.formHalf}><FormField label="Model year" value={draft.year} onChangeText={(year) => setDraft((current) => ({ ...current, year }))} keyboardType="number-pad" placeholder="2024" /></View><View style={styles.formHalf}><FormField label="Registration" value={draft.plate} onChangeText={(plate) => setDraft((current) => ({ ...current, plate }))} autoCapitalize="characters" placeholder="MH 01 AB 1234" /></View></View>
         <View style={styles.formTwoCol}><View style={styles.formHalf}><FormField label="Colour" value={draft.colour} onChangeText={(colour) => setDraft((current) => ({ ...current, colour }))} placeholder="Pearl white" /></View><View style={styles.formHalf}><FormField label="Odometer" value={draft.odometer} onChangeText={(odometer) => setDraft((current) => ({ ...current, odometer }))} keyboardType="number-pad" placeholder="0" /></View></View>
       </Sheet>
+      <Sheet visible={Boolean(editingId)} onClose={() => setEditingId(null)} title="Edit vehicle" subtitle="Correct the owner, registration or service details." footer={<PrimaryButton label="Save changes" icon="checkmark" onPress={saveEdit} />}>
+        {editError ? <FormError text={editError} /> : null}
+        <OwnerPicker customers={customers} value={editDraft.customerId} onChange={(customerId) => setEditDraft((current) => ({ ...current, customerId }))} />
+        <FormField label="Make" value={editDraft.make} onChangeText={(make) => setEditDraft((current) => ({ ...current, make }))} placeholder="e.g. Toyota" />
+        <FormField label="Model" value={editDraft.model} onChangeText={(model) => setEditDraft((current) => ({ ...current, model }))} placeholder="e.g. Fortuner" />
+        <View style={styles.formTwoCol}><View style={styles.formHalf}><FormField label="Model year" value={editDraft.year} onChangeText={(year) => setEditDraft((current) => ({ ...current, year }))} keyboardType="number-pad" placeholder="2024" /></View><View style={styles.formHalf}><FormField label="Registration" value={editDraft.plate} onChangeText={(plate) => setEditDraft((current) => ({ ...current, plate }))} autoCapitalize="characters" placeholder="MH 01 AB 1234" /></View></View>
+        <View style={styles.formTwoCol}><View style={styles.formHalf}><FormField label="Colour" value={editDraft.colour} onChangeText={(colour) => setEditDraft((current) => ({ ...current, colour }))} placeholder="Pearl white" /></View><View style={styles.formHalf}><FormField label="Odometer" value={editDraft.odometer} onChangeText={(odometer) => setEditDraft((current) => ({ ...current, odometer }))} keyboardType="number-pad" placeholder="0" /></View></View>
+      </Sheet>
+      <Sheet visible={Boolean(deletingId)} onClose={() => setDeletingId(null)} title="Delete vehicle" subtitle="This removes the vehicle from the register." footer={<PrimaryButton label="Delete vehicle" icon="trash-outline" variant="danger" onPress={confirmRemove} />}>
+        <View style={styles.confirmCopy}><View style={styles.confirmIcon}><Icon name="alert-circle-outline" size={28} color={colors.error} /></View><Text style={styles.confirmTitle}>Delete {deletingVehicle ? `${deletingVehicle.make} ${deletingVehicle.model}` : "this vehicle"}?</Text><Text style={styles.confirmDetail}>Its appointments will be removed too. A vehicle with work orders cannot be deleted until those are cleared.</Text></View>
+        {deleteError ? <FormError text={deleteError} /> : null}
+      </Sheet>
     </PageScroll>
   );
 }
 
-function VehicleDetail({ vehicle, customers, workOrders, onStatus }: { vehicle: Vehicle; customers: Customer[]; workOrders: WorkOrder[]; onStatus: (status: VehicleStatus) => void }) {
+function VehicleDetail({ vehicle, customers, workOrders, onStatus, onDelete }: { vehicle: Vehicle; customers: Customer[]; workOrders: WorkOrder[]; onStatus: (status: VehicleStatus) => void; onDelete: () => void }) {
   const owner = customerFor(customers, vehicle.customerId);
   const order = workOrders.find((item) => item.vehicleId === vehicle.id && item.status !== "Collected");
   return <View style={styles.sheetStack}>
@@ -291,23 +339,45 @@ function VehicleDetail({ vehicle, customers, workOrders, onStatus }: { vehicle: 
     <Card><Label>Owner</Label><View style={styles.ownerDetail}><Avatar initials={owner?.initials ?? "?"} /><View><Text style={styles.ownerDetailName}>{owner?.name ?? "Unassigned"}</Text><Text style={styles.ownerDetailMeta}>{owner?.phone ?? "Add a customer contact"}</Text></View></View></Card>
     <Card><Label>Service details</Label><View style={styles.detailRows}><DetailRow label="Odometer" value={`${vehicle.odometer.toLocaleString("en-IN")} km`} /><DetailRow label="Last service" value={vehicle.lastService} /><DetailRow label="Next service" value={vehicle.nextService} /></View></Card>
     <View><Text style={styles.fieldLabel}>Move vehicle to</Text><View style={styles.statusChoiceGrid}>{vehicleStatuses.map((status) => <Pressable key={status} onPress={() => onStatus(status)} style={({ pressed }) => [styles.statusChoice, status === vehicle.status && styles.statusChoiceActive, pressed && styles.pressed]}><Icon name={stageIcon(status)} size={18} color={status === vehicle.status ? colors.surface : colors.ink} /><Text style={[styles.statusChoiceText, status === vehicle.status && styles.statusChoiceTextActive]}>{status}</Text></Pressable>)}</View></View>
+    <PrimaryButton label="Delete vehicle" icon="trash-outline" variant="danger" onPress={onDelete} />
   </View>;
 }
 
 export function CustomersScreen({ navigate }: ScreenProps) {
-  const { customers, vehicles, workOrders, addCustomer } = useGarage();
+  const { customers, vehicles, workOrders, addCustomer, updateCustomer, deleteCustomer } = useGarage();
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = customers.find((customer) => customer.id === selectedId) ?? null;
   const [error, setError] = useState("");
   const [draft, setDraft] = useState({ name: "", phone: "", email: "", note: "" });
+  // Edit + delete flows use their own ids so only one sheet is open at a time.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState({ name: "", phone: "", email: "", note: "" });
+  const [editError, setEditError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const deletingCustomer = customers.find((customer) => customer.id === deletingId) ?? null;
   const visible = customers.filter((customer) => !search.trim() || `${customer.name} ${customer.phone} ${customer.email}`.toLowerCase().includes(search.trim().toLowerCase()));
   const openAdd = () => { setDraft({ name: "", phone: "", email: "", note: "" }); setError(""); setAdding(true); };
   const save = () => {
     if (draft.name.trim().length < 2 || draft.phone.trim().length < 5) { setError("A customer name and a reachable phone number are required."); return; }
     addCustomer({ name: draft.name.trim(), phone: draft.phone.trim(), email: draft.email.trim(), note: draft.note.trim() || undefined });
     setAdding(false);
+  };
+  const openEdit = (customer: Customer) => { setEditDraft({ name: customer.name, phone: customer.phone, email: customer.email, note: customer.note ?? "" }); setEditError(""); setSelectedId(null); setEditingId(customer.id); };
+  const saveEdit = () => {
+    if (!editingId) return;
+    if (editDraft.name.trim().length < 2 || editDraft.phone.trim().length < 5) { setEditError("A customer name and a reachable phone number are required."); return; }
+    updateCustomer(editingId, { name: editDraft.name.trim(), phone: editDraft.phone.trim(), email: editDraft.email.trim(), note: editDraft.note.trim() || undefined });
+    setEditingId(null);
+  };
+  const openDelete = (customer: Customer) => { setDeleteError(""); setSelectedId(null); setDeletingId(customer.id); };
+  const confirmRemove = () => {
+    if (!deletingId) return;
+    const failure = deleteCustomer(deletingId);
+    if (failure) { setDeleteError(failure); return; }
+    setDeletingId(null);
   };
 
   return <PageScroll>
@@ -326,18 +396,26 @@ export function CustomersScreen({ navigate }: ScreenProps) {
     <Sheet visible={adding} onClose={() => setAdding(false)} title="Add customer" subtitle="Start a relationship with a useful, clean profile." footer={<PrimaryButton label="Save customer" icon="checkmark" onPress={save} />}>
       {error ? <FormError text={error} /> : null}<FormField label="Full name" value={draft.name} onChangeText={(name) => setDraft((current) => ({ ...current, name }))} placeholder="Customer name" /><FormField label="Phone" value={draft.phone} onChangeText={(phone) => setDraft((current) => ({ ...current, phone }))} keyboardType="phone-pad" placeholder="+91 ..." /><FormField label="Email" value={draft.email} onChangeText={(email) => setDraft((current) => ({ ...current, email }))} keyboardType="email-address" autoCapitalize="none" placeholder="customer@example.com" /><FormField label="Notes" value={draft.note} onChangeText={(note) => setDraft((current) => ({ ...current, note }))} placeholder="Preferences, fleet notes, collection instructions" multiline />
     </Sheet>
-    <Sheet visible={Boolean(selected)} onClose={() => setSelectedId(null)} title={selected?.name ?? "Customer"} subtitle={selected ? `${selected.totalVisits} visits · member since ${selected.joinedAt}` : undefined} footer={<PrimaryButton label="View vehicles" icon="car-outline" onPress={() => { setSelectedId(null); navigate("vehicles"); }} />}>
-      {selected ? <CustomerDetail customer={selected} vehicles={vehicles.filter((vehicle) => vehicle.customerId === selected.id)} orders={workOrders.filter((order) => order.customerId === selected.id)} /> : null}
+    <Sheet visible={Boolean(selected)} onClose={() => setSelectedId(null)} title={selected?.name ?? "Customer"} subtitle={selected ? `${selected.totalVisits} visits · member since ${selected.joinedAt}` : undefined} footer={selected ? <View style={styles.detailActions}><PrimaryButton label="Edit" icon="create-outline" variant="light" onPress={() => openEdit(selected)} style={styles.detailActionFlex} /><PrimaryButton label="View vehicles" icon="car-outline" onPress={() => { setSelectedId(null); navigate("vehicles"); }} style={styles.detailActionFlex} /></View> : undefined}>
+      {selected ? <CustomerDetail customer={selected} vehicles={vehicles.filter((vehicle) => vehicle.customerId === selected.id)} orders={workOrders.filter((order) => order.customerId === selected.id)} onDelete={() => openDelete(selected)} /> : null}
+    </Sheet>
+    <Sheet visible={Boolean(editingId)} onClose={() => setEditingId(null)} title="Edit customer" subtitle="Update contact details and notes." footer={<PrimaryButton label="Save changes" icon="checkmark" onPress={saveEdit} />}>
+      {editError ? <FormError text={editError} /> : null}<FormField label="Full name" value={editDraft.name} onChangeText={(name) => setEditDraft((current) => ({ ...current, name }))} placeholder="Customer name" /><FormField label="Phone" value={editDraft.phone} onChangeText={(phone) => setEditDraft((current) => ({ ...current, phone }))} keyboardType="phone-pad" placeholder="+91 ..." /><FormField label="Email" value={editDraft.email} onChangeText={(email) => setEditDraft((current) => ({ ...current, email }))} keyboardType="email-address" autoCapitalize="none" placeholder="customer@example.com" /><FormField label="Notes" value={editDraft.note} onChangeText={(note) => setEditDraft((current) => ({ ...current, note }))} placeholder="Preferences, fleet notes, collection instructions" multiline />
+    </Sheet>
+    <Sheet visible={Boolean(deletingId)} onClose={() => setDeletingId(null)} title="Delete customer" subtitle="This removes the customer from the workspace." footer={<PrimaryButton label="Delete customer" icon="trash-outline" variant="danger" onPress={confirmRemove} />}>
+      <View style={styles.confirmCopy}><View style={styles.confirmIcon}><Icon name="alert-circle-outline" size={28} color={colors.error} /></View><Text style={styles.confirmTitle}>Delete {deletingCustomer?.name ?? "this customer"}?</Text><Text style={styles.confirmDetail}>Their appointments and invoices will be removed from this workspace. This cannot be undone.</Text></View>
+      {deleteError ? <FormError text={deleteError} /> : null}
     </Sheet>
   </PageScroll>;
 }
 
-function CustomerDetail({ customer, vehicles, orders }: { customer: Customer; vehicles: Vehicle[]; orders: WorkOrder[] }) {
+function CustomerDetail({ customer, vehicles, orders, onDelete }: { customer: Customer; vehicles: Vehicle[]; orders: WorkOrder[]; onDelete: () => void }) {
   return <View style={styles.sheetStack}>
     <Card><Label>Contact</Label><View style={styles.detailRows}><DetailRow label="Phone" value={customer.phone} /><DetailRow label="Email" value={customer.email || "Not recorded"} /><DetailRow label="Lifetime value" value={formatMoney(customer.lifetimeValue)} /></View></Card>
     {customer.note ? <Card><Label>Front desk note</Label><Text style={styles.noteText}>{customer.note}</Text></Card> : null}
     <View><SectionHeader title="Vehicles" />{vehicles.length ? vehicles.map((vehicle) => <View key={vehicle.id} style={styles.compactVehicleRow}><VehicleArt tone={vehicle.imageTone} size="small" /><View style={styles.flexCopy}><Text style={styles.compactVehicleTitle}>{vehicle.make} {vehicle.model}</Text><Text style={styles.compactVehicleDetail}>{vehicle.plate} · {vehicle.odometer.toLocaleString("en-IN")} km</Text></View><StatusBadge status={vehicle.status} small /></View>) : <Text style={styles.mutedLine}>No vehicle has been recorded yet.</Text>}</View>
     <View><SectionHeader title="Recent work" />{orders.length ? orders.slice(0, 3).map((order) => <View key={order.id} style={styles.compactOrderRow}><View style={styles.orderNumberBox}><Text style={styles.orderNumberText}>{order.number.replace("WO-", "#")}</Text></View><View style={styles.flexCopy}><Text style={styles.compactVehicleTitle}>{order.title}</Text><Text style={styles.compactVehicleDetail}>{order.technician} · {formatMoney(order.estimate)}</Text></View><StatusBadge status={order.status} small /></View>) : <Text style={styles.mutedLine}>No work history has been recorded yet.</Text>}</View>
+    <PrimaryButton label="Delete customer" icon="trash-outline" variant="danger" onPress={onDelete} />
   </View>;
 }
 
@@ -395,7 +473,7 @@ function WorkOrderDetail({ order, vehicles, customers, onToggle }: { order: Work
 
 export function CalendarScreen({ isWide }: ScreenProps) {
   const { events, vehicles, customers, addEvent } = useGarage();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(todayISO());
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState(() => makeEventDraft(customers[0]?.id ?? "", vehicles[0]?.id ?? ""));
@@ -403,6 +481,7 @@ export function CalendarScreen({ isWide }: ScreenProps) {
     const date = new Date(); date.setDate(date.getDate() + index); return date;
   }), []);
   const listed = events.filter((event) => event.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time));
+  const todayLocal = todayISO();
   const openAdd = () => { setDraft(makeEventDraft(customers[0]?.id ?? "", vehicles[0]?.id ?? "", selectedDate)); setError(""); setAdding(true); };
   const save = () => {
     if (!draft.customerId || !draft.vehicleId || !draft.title.trim() || !draft.time.trim()) { setError("Choose a customer and vehicle, then give the appointment a title and time."); return; }
@@ -411,8 +490,8 @@ export function CalendarScreen({ isWide }: ScreenProps) {
   };
   return <PageScroll>
     <PageIntro title="Calendar" detail="Drop-offs, services and collections." action={<PrimaryButton label="Schedule" icon="add" onPress={openAdd} compact />} />
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStrip}>{dateChoices.map((date) => { const iso = date.toISOString().slice(0, 10); const active = iso === selectedDate; return <Pressable key={iso} onPress={() => setSelectedDate(iso)} style={({ pressed }) => [styles.dateChip, active && styles.dateChipActive, pressed && styles.pressed]}><Text style={[styles.dateChipWeekday, active && styles.dateChipTextActive]}>{date.toLocaleDateString("en-IN", { weekday: "short" })}</Text><Text style={[styles.dateChipNumber, active && styles.dateChipTextActive]}>{date.getDate()}</Text></Pressable>; })}</ScrollView>
-    <View style={[styles.calendarHeadline, isWide && styles.calendarHeadlineWide]}><View><Text style={styles.calendarTitle}>{shortDate.format(new Date(`${selectedDate}T12:00:00`))}</Text><Text style={styles.calendarSub}>{listed.length} appointment{listed.length === 1 ? "" : "s"} scheduled</Text></View><PrimaryButton label="Today" icon="today-outline" onPress={() => setSelectedDate(new Date().toISOString().slice(0, 10))} variant="light" compact /></View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStrip}>{dateChoices.map((date) => { const iso = toLocalISO(date); const active = iso === selectedDate; return <Pressable key={iso} onPress={() => setSelectedDate(iso)} style={({ pressed }) => [styles.dateChip, active && styles.dateChipActive, pressed && styles.pressed]}><Text style={[styles.dateChipWeekday, active && styles.dateChipTextActive]}>{iso === todayLocal ? "Today" : date.toLocaleDateString("en-IN", { weekday: "short" })}</Text><Text style={[styles.dateChipNumber, active && styles.dateChipTextActive]}>{date.getDate()}</Text></Pressable>; })}</ScrollView>
+    <View style={[styles.calendarHeadline, isWide && styles.calendarHeadlineWide]}><View><Text style={styles.calendarTitle}>{shortDate.format(new Date(`${selectedDate}T12:00:00`))}</Text><Text style={styles.calendarSub}>{listed.length} appointment{listed.length === 1 ? "" : "s"} scheduled</Text></View><PrimaryButton label="Today" icon="today-outline" onPress={() => setSelectedDate(todayISO())} variant="light" compact /></View>
     {listed.length ? <View style={styles.calendarList}>{listed.map((event) => <CalendarItem key={event.id} event={event} vehicles={vehicles} customers={customers} />)}</View> : <EmptyState icon="calendar-outline" title="This day is open" detail="Use the schedule button to reserve a drop-off, service slot or collection." action="Schedule visit" onAction={openAdd} />}
     <Sheet visible={adding} onClose={() => setAdding(false)} title="Schedule appointment" subtitle="Reserve a time slot and give the workshop context." footer={<PrimaryButton label="Schedule appointment" icon="checkmark" onPress={save} />}>
       {error ? <FormError text={error} /> : null}<OwnerPicker customers={customers} value={draft.customerId} onChange={(customerId) => { const firstVehicle = vehicles.find((vehicle) => vehicle.customerId === customerId); setDraft((current) => ({ ...current, customerId, vehicleId: firstVehicle?.id ?? "" })); }} /><VehiclePicker vehicles={vehicles.filter((vehicle) => vehicle.customerId === draft.customerId)} value={draft.vehicleId} onChange={(vehicleId) => setDraft((current) => ({ ...current, vehicleId }))} /><FormField label="Appointment title" value={draft.title} onChangeText={(title) => setDraft((current) => ({ ...current, title }))} placeholder="e.g. Annual service check-in" /><View style={styles.formTwoCol}><View style={styles.formHalf}><FormField label="Date (YYYY-MM-DD)" value={draft.date} onChangeText={(date) => setDraft((current) => ({ ...current, date }))} placeholder="2026-07-23" /></View><View style={styles.formHalf}><FormField label="Time" value={draft.time} onChangeText={(time) => setDraft((current) => ({ ...current, time }))} placeholder="10:30" /></View></View><View style={styles.formTwoCol}><View style={styles.formHalf}><FormField label="Technician" value={draft.technician} onChangeText={(technician) => setDraft((current) => ({ ...current, technician }))} placeholder="Assign team member" /></View><View style={styles.formHalf}><FormField label="Duration" value={draft.duration} onChangeText={(duration) => setDraft((current) => ({ ...current, duration }))} placeholder="1h 30m" /></View></View><PickerField label="Visit type" options={eventKinds} value={draft.kind} onChange={(kind) => setDraft((current) => ({ ...current, kind }))} />
@@ -491,7 +570,7 @@ export function VehiclePicker({ vehicles, value, onChange }: { vehicles: Vehicle
 
 function makeVehicleDraft(customerId: string) { return { customerId, make: "", model: "", year: String(new Date().getFullYear()), plate: "", colour: "", odometer: "" }; }
 function makeOrderDraft(customerId: string, vehicleId: string) { return { customerId, vehicleId, title: "", service: "", technician: "", bay: "Bay 01", priority: "Standard" as (typeof priorityOptions)[number], estimate: "", dueAt: "", note: "" }; }
-function makeEventDraft(customerId: string, vehicleId: string, date = new Date().toISOString().slice(0, 10)) { return { customerId, vehicleId, title: "", date, time: "", technician: "", duration: "1h", kind: "Service" as (typeof eventKinds)[number] }; }
+function makeEventDraft(customerId: string, vehicleId: string, date = todayISO()) { return { customerId, vehicleId, title: "", date, time: "", technician: "", duration: "1h", kind: "Service" as (typeof eventKinds)[number] }; }
 function makeInventoryDraft() { return { name: "", sku: "", category: "", quantity: "", reorderAt: "", unit: "pcs", price: "", supplier: "" }; }
 function nextStatus(current: VehicleStatus): VehicleStatus { return vehicleStatuses[Math.min(vehicleStatuses.indexOf(current) + 1, vehicleStatuses.length - 1)]; }
 
@@ -517,7 +596,7 @@ const styles = StyleSheet.create({
   orderMiniRow: { minHeight: 79, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11 }, orderMiniCopy: { flex: 1, minWidth: 0, gap: 4 }, orderMiniTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" }, orderMiniDetail: { color: colors.inkMuted, fontSize: 10.5, lineHeight: 15 }, orderMiniMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }, orderMiniMetaText: { color: colors.inkFaint, fontSize: 10.5, fontWeight: "700" },
   filterSpacer: { marginTop: -8 }, listCaption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: -3 }, listCaptionText: { color: colors.ink, fontSize: 12, fontWeight: "800" }, listCaptionHint: { color: colors.inkFaint, fontSize: 11 }, cardList: { gap: 10 },
   vehicleCard: { minHeight: 110, padding: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, borderRadius: radius.md, flexDirection: "row", alignItems: "center", gap: 12 }, vehicleCardCopy: { flex: 1, minWidth: 0, gap: 4 }, rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, vehicleCardTitle: { color: colors.ink, fontSize: 15, fontWeight: "800", flex: 1 }, vehiclePlate: { color: colors.inkMuted, fontSize: 11, fontWeight: "800", letterSpacing: 0.35 }, vehicleCardDetail: { color: colors.inkFaint, fontSize: 10.5 }, ownerInline: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }, ownerInlineText: { color: colors.inkMuted, fontSize: 10.5, fontWeight: "700" }, ownerInlineHint: { color: colors.info, fontSize: 10, fontWeight: "800" },
-  sheetStack: { gap: 16 }, vehicleDetailHero: { flexDirection: "row", alignItems: "center", gap: 13 }, detailHeroLabel: { color: colors.inkFaint, fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 5 }, detailHeroText: { color: colors.inkMuted, fontSize: 12, marginTop: 7 }, ownerDetail: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 11 }, ownerDetailName: { color: colors.ink, fontSize: 14, fontWeight: "800" }, ownerDetailMeta: { color: colors.inkMuted, fontSize: 12, marginTop: 3 }, detailRows: { gap: 0, marginTop: 9 }, detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 15, paddingTop: 11 }, detailRowLabel: { color: colors.inkMuted, fontSize: 12 }, detailRowValue: { color: colors.ink, fontSize: 12, fontWeight: "800", textAlign: "right", flexShrink: 1 }, statusChoiceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 9 }, statusChoice: { flexGrow: 1, flexBasis: 130, minHeight: 45, borderRadius: 11, borderWidth: 1, borderColor: colors.line, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8 }, statusChoiceActive: { backgroundColor: colors.ink, borderColor: colors.ink }, statusChoiceText: { color: colors.ink, fontSize: 11, fontWeight: "800" }, statusChoiceTextActive: { color: colors.surface },
+  sheetStack: { gap: 16 }, detailActions: { flexDirection: "row", gap: 10 }, detailActionFlex: { flex: 1 }, vehicleDetailHero: { flexDirection: "row", alignItems: "center", gap: 13 }, detailHeroLabel: { color: colors.inkFaint, fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 5 }, detailHeroText: { color: colors.inkMuted, fontSize: 12, marginTop: 7 }, ownerDetail: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 11 }, ownerDetailName: { color: colors.ink, fontSize: 14, fontWeight: "800" }, ownerDetailMeta: { color: colors.inkMuted, fontSize: 12, marginTop: 3 }, detailRows: { gap: 0, marginTop: 9 }, detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 15, paddingTop: 11 }, detailRowLabel: { color: colors.inkMuted, fontSize: 12 }, detailRowValue: { color: colors.ink, fontSize: 12, fontWeight: "800", textAlign: "right", flexShrink: 1 }, statusChoiceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 9 }, statusChoice: { flexGrow: 1, flexBasis: 130, minHeight: 45, borderRadius: 11, borderWidth: 1, borderColor: colors.line, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8 }, statusChoiceActive: { backgroundColor: colors.ink, borderColor: colors.ink }, statusChoiceText: { color: colors.ink, fontSize: 11, fontWeight: "800" }, statusChoiceTextActive: { color: colors.surface },
   formError: { flexDirection: "row", gap: 8, alignItems: "center", borderRadius: 12, backgroundColor: "#FBECEE", padding: 12, marginBottom: 15 }, formErrorText: { color: colors.error, flex: 1, fontSize: 12, lineHeight: 17, fontWeight: "700" }, formTwoCol: { flexDirection: "row", gap: 10 }, formHalf: { flex: 1, minWidth: 0 }, formThreeCol: { flexDirection: "row", gap: 8 }, formThird: { flex: 1, minWidth: 0 }, fieldGroup: { gap: 7, marginBottom: 16 }, fieldLabel: { color: colors.ink, fontSize: 12, fontWeight: "800" },
   customerSummary: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: -5 }, customerSummaryStrong: { color: colors.ink, fontSize: 12, fontWeight: "800" }, customerSummaryText: { color: colors.inkMuted, fontSize: 12 }, customerCard: { minHeight: 90, padding: 13, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, flexDirection: "row", alignItems: "center", gap: 12 }, customerCardCopy: { flex: 1, minWidth: 0, gap: 4 }, customerName: { color: colors.ink, fontSize: 15, fontWeight: "800", flex: 1 }, customerContact: { color: colors.inkMuted, fontSize: 11 }, customerMeta: { color: colors.inkFaint, fontSize: 10.5, marginTop: 1 }, noteText: { color: colors.inkMuted, fontSize: 13, lineHeight: 19, marginTop: 10 }, compactVehicleRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9 }, compactVehicleTitle: { color: colors.ink, fontSize: 13, fontWeight: "800" }, compactVehicleDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 3 }, compactOrderRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9 }, orderNumberBox: { paddingVertical: 6, paddingHorizontal: 7, borderRadius: 8, backgroundColor: colors.soft }, orderNumberText: { color: colors.ink, fontSize: 10, fontWeight: "800" }, mutedLine: { color: colors.inkMuted, fontSize: 12, marginTop: 3 },
   workOrderControls: { gap: 11 }, workOrderControlsWide: { flexDirection: "row", alignItems: "center" }, workSearch: { flex: 1 }, workFilter: { maxWidth: "100%" }, workBoardHeader: { flexDirection: "row", justifyContent: "space-between", gap: 10, alignItems: "center", marginTop: -2 }, workBoardHint: { color: colors.inkFaint, fontSize: 11 }, workCard: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 12 }, workCardHead: { flexDirection: "row", alignItems: "center", gap: 7 }, workNumber: { backgroundColor: colors.ink, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 }, workNumberText: { color: colors.surface, fontSize: 10, fontWeight: "800" }, workCardMain: { flexDirection: "row", alignItems: "center", gap: 11 }, workTitle: { color: colors.ink, fontSize: 15, fontWeight: "800" }, workDetail: { color: colors.inkMuted, fontSize: 11, marginTop: 4 }, workMeta: { color: colors.inkFaint, fontSize: 10.5, marginTop: 4 }, workCardBottom: { flexDirection: "row", alignItems: "center", gap: 8 }, progressTrack: { flex: 1, height: 5, backgroundColor: colors.soft, borderRadius: 3, overflow: "hidden" }, progressFill: { height: "100%", backgroundColor: colors.ink, borderRadius: 3 }, progressText: { color: colors.inkFaint, fontSize: 10, fontWeight: "700" }, workEstimate: { color: colors.ink, fontSize: 11, fontWeight: "800" }, orderDetailTop: { flexDirection: "row", alignItems: "center", gap: 10 }, orderDetailEstimate: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: "800", textAlign: "right" }, orderDetailDue: { color: colors.inkMuted, fontSize: 11, textAlign: "right", marginTop: 2 }, detailBriefTitle: { color: colors.ink, fontSize: 15, fontWeight: "800", marginTop: 10 }, detailBriefCopy: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, marginTop: 6, marginBottom: 14 }, serviceAssignment: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 14 }, checklistHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 10 }, checklistProgress: { color: colors.inkMuted, fontSize: 11, fontWeight: "800" }, checklistBox: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, overflow: "hidden" }, checklistRow: { minHeight: 54, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line }, checkCircle: { width: 23, height: 23, borderRadius: 12, borderWidth: 1.5, borderColor: "#B9B9B9", alignItems: "center", justifyContent: "center" }, checkCircleDone: { backgroundColor: colors.ink, borderColor: colors.ink }, checkLabel: { color: colors.ink, fontSize: 13, fontWeight: "700", flex: 1 }, checkLabelDone: { color: colors.inkMuted, textDecorationLine: "line-through" },
